@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1152 768" role="img" aria-labelledby="title desc">
+  <title id="title">GlobeTrotter</title>
+  <desc id="desc">GlobeTrotter globe and airplane logo</desc>
+  <g fill="none" stroke="#0d7f89" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="566" cy="282" r="166" stroke-width="14"/>
+    <path d="M410 304c-16-65 3-128 52-169M494 125c-28 38-38 92-28 151 10 61 42 115 87 153M640 127c37 34 61 82 67 136 7 59-6 115-39 159M404 282h324" stroke-width="11"/>
+    <path d="M374 350c78 56 187 30 270-35 63-49 112-108 166-169" stroke-width="30"/>
+    <path d="M754 141 696 96c-8-6-4-18 7-16l80 20 66-42c15-9 27-1 17 13l-45 62 8 79c1 12-11 16-17 7l-36-57-74 42c-12 7-22-2-13-13z" fill="#0d7f89" stroke="none"/>
+  </g>
+  <g fill="#0d7f89" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">
+    <text x="576" y="548" font-size="92" font-weight="700">GlobeTrotter</text>
+    <path d="M207 586h100M845 586h100" stroke="#0d7f89" stroke-width="4"/>
+    <text x="576" y="600" font-size="30" letter-spacing="1">Explore. Experience. Remember.</text>
+  </g>
+</svg>
