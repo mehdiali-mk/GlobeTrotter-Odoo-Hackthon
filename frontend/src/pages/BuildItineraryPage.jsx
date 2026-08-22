@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PageHeader from "../components/ui/PageHeader";
 import Card, { CardHeader, CardBody } from "../components/ui/Card";
 import Button, { ButtonLink } from "../components/ui/Button";
 import { SelectField } from "../components/ui/Field";
 import ItinerarySection, { sectionTypes } from "../components/ItinerarySection";
-import { useAppData } from "../context/AppDataContext";
 import { useToast } from "../context/ToastContext";
+import { useMyTrips } from "../hooks/useApi";
+import { tripService } from "../services/api/tripService";
 import { formatMoney, countDays } from "../utils/format";
 import { toDateInputValue } from "../services/tripService";
 
@@ -54,12 +55,18 @@ const starterSections = [
 // Screen 5 — Build itinerary. Sections are editable and can be added or
 // removed without a page reload. The shape matches the future API document.
 export default function BuildItineraryPage() {
-  const data = useAppData();
   const { showToast } = useToast();
-  const trips = data.getMyTrips();
+  const { data: trips = [], isLoading: tripsLoading } = useMyTrips();
 
-  const [tripId, setTripId] = useState(trips[0] ? trips[0]._id : "");
+  const [tripId, setTripId] = useState("");
   const [sections, setSections] = useState(starterSections);
+  const [isLoadingItinerary, setIsLoadingItinerary] = useState(false);
+
+  useEffect(() => {
+    if (trips.length > 0 && !tripId) {
+      setTripId(trips[0]._id);
+    }
+  }, [trips, tripId]);
 
   const trip = trips.find((item) => item._id === tripId) || null;
 
@@ -76,30 +83,46 @@ export default function BuildItineraryPage() {
   }
 
   // Pulls the city stops of the selected trip in as sections.
-  function loadFromTrip() {
+  async function loadFromTrip() {
     if (!trip) return;
-    const stops = data.getStopsForTrip(trip._id);
-    if (stops.length === 0) {
-      showToast("That trip has no stops yet", "danger");
-      return;
+    
+    setIsLoadingItinerary(true);
+    try {
+      const response = await tripService.getTripItinerary(trip._id);
+      const stops = response.data?.stops || [];
+      const activities = response.data?.activities || [];
+      
+      if (stops.length === 0) {
+        showToast("That trip has no stops yet", "danger");
+        setIsLoadingItinerary(false);
+        return;
+      }
+      
+      setSections(
+        stops.map((stop) => {
+          const stopActivities = activities.filter(a => {
+            const stopId = typeof a.stop === 'object' ? a.stop._id : a.stop;
+            return stopId === stop._id;
+          });
+          
+          const totalCost = stopActivities.reduce((total, activity) => total + Number(activity.cost || 0), 0);
+          
+          return makeSection({
+            title: `${stop.cityName} — city stay`,
+            description: stop.notes || `Staying at ${stop.accommodation || "a place to confirm"}.`,
+            startDate: toDateInputValue(stop.arrivalDate),
+            endDate: toDateInputValue(stop.departureDate),
+            budget: String(totalCost),
+            type: "City stay",
+          });
+        })
+      );
+      showToast(`Loaded ${stops.length} stops from "${trip.title}"`);
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to load itinerary", "danger");
+    } finally {
+      setIsLoadingItinerary(false);
     }
-    setSections(
-      stops.map((stop) =>
-        makeSection({
-          title: `${stop.cityName} — city stay`,
-          description: stop.notes || `Staying at ${stop.accommodation || "a place to confirm"}.`,
-          startDate: toDateInputValue(stop.arrivalDate),
-          endDate: toDateInputValue(stop.departureDate),
-          budget: String(
-            data
-              .getActivitiesForStop(stop._id)
-              .reduce((total, activity) => total + Number(activity.cost || 0), 0),
-          ),
-          type: "City stay",
-        }),
-      ),
-    );
-    showToast(`Loaded ${stops.length} stops from "${trip.title}"`);
   }
 
   const totalBudget = sections.reduce((total, section) => total + (Number(section.budget) || 0), 0);
@@ -171,7 +194,9 @@ export default function BuildItineraryPage() {
               description="Reuse the stops you already saved."
             />
             <CardBody className="space-y-4">
-              {trips.length > 0 ? (
+              {tripsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading trips...</p>
+              ) : trips.length > 0 ? (
                 <>
                   <SelectField
                     id="itinerary-trip"
@@ -184,8 +209,9 @@ export default function BuildItineraryPage() {
                     variant="secondary"
                     className="w-full justify-center"
                     onClick={loadFromTrip}
+                    disabled={isLoadingItinerary}
                   >
-                    Load stops as sections
+                    {isLoadingItinerary ? "Loading..." : "Load stops as sections"}
                   </Button>
                   {trip ? (
                     <p className="text-xs text-muted-foreground">

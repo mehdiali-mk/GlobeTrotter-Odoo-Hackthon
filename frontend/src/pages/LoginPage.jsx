@@ -5,21 +5,20 @@ import Button from "../components/ui/Button";
 import Avatar from "../components/ui/Avatar";
 import { TextField } from "../components/ui/Field";
 import AuthAside from "../components/AuthAside";
-import { useAppData } from "../context/AppDataContext";
+import { useLogin } from "../hooks/useApi";
 import { validateEmail, validateLoginPassword } from "../utils/validation";
 
 // SCREEN 2 (login half). Uses the demo authentication layer in the app data context.
 export default function LoginPage() {
   const navigate = useNavigate();
-  const data = useAppData();
+  const loginMutation = useLogin();
   const [values, setValues] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const matchedUser = data.users.find(
-    (person) => person.email.toLowerCase() === values.email.trim().toLowerCase(),
-  );
+  
+  // The matchedUser logic relies on mock users. For a real backend, we can't
+  // show the user's name/photo before they log in unless we have a specific API for it.
+  const matchedUser = null;
 
   function checkField(field, nextValues) {
     if (field === "email") return validateEmail(nextValues.email);
@@ -57,14 +56,15 @@ export default function LoginPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    setIsSubmitting(true);
-    const result = data.signIn(values.email, values.password);
-    if (!result.ok) {
-      setIsSubmitting(false);
-      setFormError(result.message);
-      return;
-    }
-    navigate({ to: "/landing" });
+    loginMutation.mutate(
+      { email: values.email, password: values.password },
+      {
+        onSuccess: () => navigate({ to: "/landing" }),
+        onError: (error) => {
+          setFormError(error.response?.data?.message || "Failed to sign in. Please try again.");
+        },
+      }
+    );
   }
 
   return (
@@ -117,33 +117,10 @@ export default function LoginPage() {
           <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{formError}</p>
         ) : null}
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Signing in…" : "Login"}
+        <Button type="submit" size="lg" className="w-full" disabled={loginMutation.isPending}>
+          {loginMutation.isPending ? "Signing in…" : "Login"}
         </Button>
       </form>
-
-      <div className="mt-6 rounded-lg border border-border bg-surface-muted p-4">
-        <p className="eyebrow">Demo accounts</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Any password works while the API is not connected yet.
-        </p>
-        <div className="mt-3 space-y-1.5">
-          {data.users.map((person) => (
-            <button
-              key={person._id}
-              type="button"
-              onClick={() => setValues({ email: person.email, password: "demo1234" })}
-              className="flex w-full items-center justify-between gap-2 rounded-md bg-surface px-3 py-2 text-left text-sm hover:bg-primary-soft"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{person.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">{person.email}</span>
-              </span>
-              <span className="shrink-0 text-xs text-muted-foreground">{person.role}</span>
-            </button>
-          ))}
-        </div>
-      </div>
 
       <p className="mt-6 text-sm text-muted-foreground">
         New to GlobeTrotter?{" "}

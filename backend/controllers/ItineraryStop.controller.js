@@ -91,3 +91,31 @@ export const deleteStop = catchAsync(async (req, res, next) => {
     data: null
   });
 });
+
+// ─── REORDER STOPS ──────────────────────────────────────────────────────────────
+
+export const reorderStops = catchAsync(async (req, res, next) => {
+  const { stops } = req.body;
+  
+  if (!stops || !Array.isArray(stops)) {
+    return next(new AppError('Please provide an array of stops with their new stopOrder', 400));
+  }
+  
+  // Create bulk operations
+  const bulkOps = stops.map((stop) => ({
+    updateOne: {
+      filter: { _id: stop._id, trip: req.params.tripId },
+      update: { stopOrder: stop.stopOrder }
+    }
+  }));
+  
+  if (bulkOps.length > 0) {
+    await ItineraryStop.bulkWrite(bulkOps);
+  }
+  
+  res.status(200).json({
+    status: 'success',
+    message: 'Stops reordered successfully'
+  });
+});
+

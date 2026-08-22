@@ -8,5 +8,6 @@ const router = express.Router();
 router.use(protect, restrictTo('admin'));
 
 router.get('/analytics', adminController.getAnalytics);
+router.patch('/users/:id/role', adminController.updateUserRole);
 
 export default router;

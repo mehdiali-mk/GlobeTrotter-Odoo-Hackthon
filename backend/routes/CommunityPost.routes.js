@@ -16,5 +16,6 @@ router.use(protect);
 router.post('/', communityPostController.createPost);
 router.patch('/:id', communityPostController.updatePost);
 router.delete('/:id', communityPostController.deletePost);
+router.post('/:id/like', communityPostController.toggleLike);
 
 export default router;

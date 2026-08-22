@@ -12,7 +12,6 @@ import MemberList from "../components/MemberList";
 import Modal from "../components/ui/Modal";
 import TripForm from "../components/TripForm";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { useAppData } from "../context/AppDataContext";
 import { useToast } from "../context/ToastContext";
 import { sumExpenses } from "../utils/trip";
 import { formatDateRange, countDays, countNights } from "../utils/format";
@@ -24,18 +23,37 @@ import {
   isTripMember,
   roleLabel,
 } from "../utils/permissions";
+import { 
+  useTripItinerary, 
+  useCurrentUser, 
+  useUpdateTrip, 
+  useDeleteTrip, 
+  useJoinTrip, 
+  useLeaveTrip 
+} from "../hooks/useApi";
+import { tripService } from "../services/api/tripService";
 
 export default function TripOverviewPage({ tripId }) {
-  const data = useAppData();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [copiedCode, setCopiedCode] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
-  const trip = data.getTripById(tripId);
+  // Queries & Mutations
+  const { data: user } = useCurrentUser();
+  const { data: itineraryData, isLoading, isError } = useTripItinerary(tripId);
+  
+  const updateTrip = useUpdateTrip();
+  const deleteTrip = useDeleteTrip();
+  const joinTrip = useJoinTrip();
+  const leaveTrip = useLeaveTrip();
 
-  if (!trip) {
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading trip...</div>;
+  }
+
+  if (isError || !itineraryData || !itineraryData.trip) {
     return (
       <NotFoundState
         title="Trip not found"
@@ -46,25 +64,21 @@ export default function TripOverviewPage({ tripId }) {
     );
   }
 
-  const stops = data.getStopsForTrip(tripId);
-  const activities = data.getActivitiesForTrip(tripId);
-  const expenses = data.getExpensesForTrip(tripId);
-  const creator = data.getUserById(trip.creator);
-  const user = data.currentUser;
-  const role = getTripRole(trip, user._id);
+  const { trip, stops = [], activities = [], expenses = [] } = itineraryData;
+  const creator = trip.creator;
+  const role = getTripRole(trip, user?._id);
   const isOwner = canManageTrip(trip, user);
   const canEdit = canEditTrip(trip, user);
-  const isMember = isTripMember(trip, user._id);
+  const isMember = isTripMember(trip, user?._id);
   const canJoin = canJoinTrip(trip, user) && trip.isPublic;
 
   function handleVisibility() {
-    if (trip.isPublic) {
-      data.setTripVisibility(tripId, false);
-      showToast("Trip is private again");
-    } else {
-      data.shareTrip(tripId, trip.description);
-      showToast("Trip shared with the community");
-    }
+    updateTrip.mutate({ id: tripId, isPublic: !trip.isPublic }, {
+      onSuccess: () => {
+        showToast(trip.isPublic ? "Trip is private again" : "Trip shared with the community");
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to update", "danger")
+    });
   }
 
   async function handleCopyCode() {
@@ -78,35 +92,59 @@ export default function TripOverviewPage({ tripId }) {
   }
 
   function handleJoin() {
-    const result = data.joinTrip(tripId);
-    showToast(result.message, result.ok ? "success" : "danger");
+    joinTrip.mutate(trip.joinCode, {
+      onSuccess: () => showToast("Successfully joined the trip!", "success"),
+      onError: (err) => showToast(err.response?.data?.message || "Failed to join", "danger")
+    });
   }
 
   function handleLeave() {
-    const result = data.leaveTrip(tripId);
-    showToast(result.message, result.ok ? "success" : "danger");
-    setConfirm(null);
-    if (result.ok) navigate({ to: "/trips" });
+    if (!user) return;
+    leaveTrip.mutate({ tripId, userId: user._id }, {
+      onSuccess: () => {
+        showToast("You have left the trip", "success");
+        setConfirm(null);
+        navigate({ to: "/trips" });
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || "Failed to leave", "danger");
+        setConfirm(null);
+      }
+    });
   }
 
   function handleDelete() {
-    data.deleteTrip(tripId);
-    setConfirm(null);
-    showToast("Trip deleted", "danger");
-    navigate({ to: "/trips" });
+    deleteTrip.mutate(tripId, {
+      onSuccess: () => {
+        setConfirm(null);
+        showToast("Trip deleted", "danger");
+        navigate({ to: "/trips" });
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || "Failed to delete", "danger");
+        setConfirm(null);
+      }
+    });
   }
 
   function handleSaveEdit(values) {
-    data.updateTrip(tripId, values);
-    setIsEditOpen(false);
-    showToast("Trip updated");
+    updateTrip.mutate({ id: tripId, ...values }, {
+      onSuccess: () => {
+        setIsEditOpen(false);
+        showToast("Trip updated");
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to update", "danger")
+    });
   }
 
-  function handleCopyTrip() {
-    const copy = data.cloneTrip(tripId);
-    if (!copy) return;
-    showToast(`Copied to "${copy.title}"`);
-    navigate({ to: "/trips/$tripId", params: { tripId: copy._id } });
+  async function handleCopyTrip() {
+    try {
+      const response = await tripService.cloneTrip(trip.slug);
+      showToast(`Copied to "${response.data.trip.title}"`);
+      navigate({ to: "/trips/$tripId", params: { tripId: response.data.trip._id } });
+    } catch (err) {
+      showToast(err.response?.data?.message || "Failed to clone trip", "danger");
+    }
   }
 
   return (
@@ -125,7 +163,7 @@ export default function TripOverviewPage({ tripId }) {
                 <Button variant="secondary" onClick={() => setIsEditOpen(true)}>
                   Edit trip
                 </Button>
-                <Button variant="secondary" onClick={handleVisibility}>
+                <Button variant="secondary" onClick={handleVisibility} loading={updateTrip.isPending}>
                   {trip.isPublic ? "Make private" : "Share publicly"}
                 </Button>
                 <Button
@@ -158,10 +196,12 @@ export default function TripOverviewPage({ tripId }) {
                 Leave trip
               </Button>
             ) : null}
-            {canJoin ? <Button onClick={handleJoin}>Join trip</Button> : null}
-            <Button variant="secondary" onClick={handleCopyTrip}>
-              Copy trip
-            </Button>
+            {canJoin ? <Button onClick={handleJoin} loading={joinTrip.isPending}>Join trip</Button> : null}
+            {trip.isPublic && !isMember && (
+              <Button variant="secondary" onClick={handleCopyTrip}>
+                Copy trip
+              </Button>
+            )}
             {canEdit ? (
               <ButtonLink to="/trips/$tripId/itinerary" params={{ tripId }}>
                 Build itinerary
@@ -179,7 +219,7 @@ export default function TripOverviewPage({ tripId }) {
           <Badge tone={trip.isPublic ? "primary" : "neutral"}>
             {trip.isPublic ? "Public plan" : "Private plan"}
           </Badge>
-          <Badge tone={role ? "success" : "neutral"}>Your role: {roleLabel(role)}</Badge>
+          {role && <Badge tone="success">Your role: {roleLabel(role)}</Badge>}
           <span className="text-sm text-muted-foreground">
             {formatDateRange(trip.startDate, trip.endDate)} ·{" "}
             {countDays(trip.startDate, trip.endDate)} days
@@ -196,14 +236,16 @@ export default function TripOverviewPage({ tripId }) {
               title="Stops"
               description={`${stops.length} cities on this route`}
               action={
-                <ButtonLink
-                  to="/trips/$tripId/itinerary"
-                  params={{ tripId }}
-                  variant="ghost"
-                  size="sm"
-                >
-                  Edit
-                </ButtonLink>
+                canEdit && (
+                  <ButtonLink
+                    to="/trips/$tripId/itinerary"
+                    params={{ tripId }}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Edit
+                  </ButtonLink>
+                )
               }
             />
             <CardBody className="px-0 py-0">
@@ -241,9 +283,11 @@ export default function TripOverviewPage({ tripId }) {
                     title="No stops yet"
                     message="Add the cities you plan to visit to build the route."
                     action={
-                      <ButtonLink to="/trips/$tripId/itinerary" params={{ tripId }}>
-                        Add stop
-                      </ButtonLink>
+                      canEdit && (
+                        <ButtonLink to="/trips/$tripId/itinerary" params={{ tripId }}>
+                          Add stop
+                        </ButtonLink>
+                      )
                     }
                   />
                 </div>
@@ -281,7 +325,7 @@ export default function TripOverviewPage({ tripId }) {
                   <EmptyState
                     title="No activities yet"
                     message="Add activities from Discover to fill the itinerary."
-                    action={<ButtonLink to="/discover">Browse activities</ButtonLink>}
+                    action={canEdit && <ButtonLink to="/discover">Browse activities</ButtonLink>}
                   />
                 </div>
               )}
@@ -327,9 +371,6 @@ export default function TripOverviewPage({ tripId }) {
                 <Avatar name={creator.name} photo={creator.photo} size="lg" />
                 <div className="min-w-0">
                   <p className="truncate font-medium">{creator.name}</p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {creator.city}, {creator.country}
-                  </p>
                 </div>
               </CardBody>
             </Card>
@@ -347,7 +388,7 @@ export default function TripOverviewPage({ tripId }) {
             <Button variant="secondary" onClick={() => setIsEditOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" form="overview-edit-trip">
+            <Button type="submit" form="overview-edit-trip" loading={updateTrip.isPending}>
               Save changes
             </Button>
           </>
@@ -355,7 +396,7 @@ export default function TripOverviewPage({ tripId }) {
       >
         <TripForm
           id="overview-edit-trip"
-          cities={data.cities}
+          cities={[]} // We don't have all cities here, but Edit doesn't need them as much if it's just title/dates
           trip={trip}
           showFirstStop={false}
           onSubmit={handleSaveEdit}
@@ -369,6 +410,7 @@ export default function TripOverviewPage({ tripId }) {
         confirmLabel={confirm ? confirm.confirmLabel : "Confirm"}
         onConfirm={confirm && confirm.kind === "leave" ? handleLeave : handleDelete}
         onCancel={() => setConfirm(null)}
+        loading={deleteTrip.isPending || leaveTrip.isPending}
       />
     </>
   );

@@ -6,9 +6,9 @@ import PageHeader, { SectionHeader } from "../components/ui/PageHeader";
 import { EmptyState } from "../components/ui/States";
 import CityCard from "../components/CityCard";
 import TripCard from "../components/TripCard";
-import { useAppData } from "../context/AppDataContext";
 import { useToast } from "../context/ToastContext";
 import { heroImage } from "../utils/images";
+import { useCurrentUser, useCities, useMyTrips, useUpdateProfile } from "../hooks/useApi";
 
 const groupByOptions = [
   { value: "none", label: "Group by: none" },
@@ -24,28 +24,30 @@ const sortByOptions = [
 
 // SCREEN 3 — Main landing page reached right after sign in.
 export default function LandingPage() {
-  const data = useAppData();
   const { showToast } = useToast();
   const [query, setQuery] = useState("");
   const [groupBy, setGroupBy] = useState("region");
   const [regionFilter, setRegionFilter] = useState("all");
   const [sortBy, setSortBy] = useState("popularity");
 
-  const user = data.currentUser;
-  const myTrips = data.getMyTrips();
+  const { data: user } = useCurrentUser();
+  const { data: cities = [], isLoading: isCitiesLoading } = useCities();
+  const { data: myTrips = [], isLoading: isTripsLoading } = useMyTrips();
+  const updateProfile = useUpdateProfile();
+
   const previousTrips = myTrips.filter((trip) => trip.status === "completed");
   const tripsToShow = previousTrips.length > 0 ? previousTrips : myTrips;
 
   const regionOptions = useMemo(() => {
-    const regions = Array.from(new Set(data.cities.map((city) => city.region)));
+    const regions = Array.from(new Set(cities.map((city) => city.region)));
     return [{ value: "all", label: "Filter: all regions" }].concat(
       regions.map((region) => ({ value: region, label: `Filter: ${region}` })),
     );
-  }, [data.cities]);
+  }, [cities]);
 
   const visibleCities = useMemo(() => {
     const search = query.trim().toLowerCase();
-    const filtered = data.cities.filter((city) => {
+    const filtered = cities.filter((city) => {
       const matchesRegion = regionFilter === "all" || city.region === regionFilter;
       const matchesSearch =
         !search || `${city.name} ${city.country} ${city.region}`.toLowerCase().includes(search);
@@ -57,7 +59,7 @@ export default function LandingPage() {
     else if (sortBy === "cost") sorted.sort((a, b) => a.costIndex.length - b.costIndex.length);
     else sorted.sort((a, b) => b.popularity - a.popularity);
     return sorted;
-  }, [data.cities, query, regionFilter, sortBy]);
+  }, [cities, query, regionFilter, sortBy]);
 
   const cityGroups = useMemo(() => {
     if (groupBy === "none") return [{ key: "All destinations", cities: visibleCities }];
@@ -68,17 +70,39 @@ export default function LandingPage() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(city);
     });
-    return Array.from(map, ([key, cities]) => ({ key, cities }));
+    return Array.from(map, ([key, citiesData]) => ({ key, cities: citiesData }));
   }, [visibleCities, groupBy]);
 
-  function handleSave(city) {
-    data.toggleSavedDestination(city._id);
-    showToast(
-      data.isDestinationSaved(city._id)
-        ? `${city.name} removed from your shortlist`
-        : `${city.name} added to your shortlist`,
-    );
+  const savedDestinations = user?.savedDestinations || [];
+  
+  function isDestinationSaved(cityId) {
+    return savedDestinations.some(d => (d._id || d) === cityId);
   }
+
+  function handleSave(city) {
+    const cityId = city._id;
+    const isSaved = isDestinationSaved(cityId);
+    let newSavedDestinations = [];
+    
+    if (isSaved) {
+      newSavedDestinations = savedDestinations.filter(d => (d._id || d) !== cityId);
+    } else {
+      newSavedDestinations = [...savedDestinations, cityId];
+    }
+    
+    updateProfile.mutate({ savedDestinations: newSavedDestinations }, {
+      onSuccess: () => {
+        showToast(
+          isSaved
+            ? `${city.name} removed from your shortlist`
+            : `${city.name} added to your shortlist`,
+        );
+      },
+      onError: () => showToast("Failed to update shortlist", "danger")
+    });
+  }
+
+  if (!user) return null;
 
   return (
     <>
@@ -143,7 +167,7 @@ export default function LandingPage() {
       <section className="mb-10">
         <SectionHeader
           title="Top Regional Selections"
-          description={`${visibleCities.length} destinations match your search`}
+          description={isCitiesLoading ? "Loading destinations..." : `${visibleCities.length} destinations match your search`}
           action={
             <ButtonLink to="/discover" variant="secondary" size="sm">
               Open Discover
@@ -151,7 +175,9 @@ export default function LandingPage() {
           }
         />
 
-        {visibleCities.length === 0 ? (
+        {isCitiesLoading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        ) : visibleCities.length === 0 ? (
           <EmptyState
             title="No destinations found"
             message="Try a different search term or clear the region filter."
@@ -172,8 +198,9 @@ export default function LandingPage() {
                           size="sm"
                           className="w-full justify-center"
                           onClick={() => handleSave(city)}
+                          disabled={updateProfile.isPending}
                         >
-                          {data.isDestinationSaved(city._id) ? "Shortlisted" : "Add to shortlist"}
+                          {isDestinationSaved(city._id) ? "Shortlisted" : "Add to shortlist"}
                         </Button>
                       }
                     />
@@ -188,7 +215,7 @@ export default function LandingPage() {
       <section>
         <SectionHeader
           title="Previous Trips"
-          description="Your journeys so far"
+          description={isTripsLoading ? "Loading trips..." : "Your journeys so far"}
           action={
             <ButtonLink to="/trips" variant="secondary" size="sm">
               All trips
@@ -196,7 +223,9 @@ export default function LandingPage() {
           }
         />
 
-        {tripsToShow.length === 0 ? (
+        {isTripsLoading ? (
+           <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        ) : tripsToShow.length === 0 ? (
           <Card>
             <CardHeader title="No trips yet" description="Your first plan starts here." />
             <CardBody>
@@ -209,8 +238,7 @@ export default function LandingPage() {
               <TripCard
                 key={trip._id}
                 trip={trip}
-                stops={data.getStopsForTrip(trip._id)}
-                members={data.getMembersForTrip(trip)}
+                members={trip.members || []}
               />
             ))}
           </div>

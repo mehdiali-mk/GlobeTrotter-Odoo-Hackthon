@@ -4,15 +4,25 @@ import Badge from "../components/ui/Badge";
 import Button, { ButtonLink } from "../components/ui/Button";
 import { NotFoundState, EmptyState } from "../components/ui/States";
 import TripTabs from "../components/TripTabs";
-import { useAppData } from "../context/AppDataContext";
 import { useToast } from "../context/ToastContext";
+import { useTrip, useTripItinerary, useUpdateActivity } from "../hooks/useApi";
 import { groupActivitiesByDate } from "../utils/trip";
 import { formatDate, formatMoney, formatHours, formatDateRange } from "../utils/format";
 
 export default function TripCalendarPage({ tripId }) {
-  const data = useAppData();
   const { showToast } = useToast();
-  const trip = data.getTripById(tripId);
+  
+  const { data: trip, isLoading: tripLoading } = useTrip(tripId);
+  const { data: itinerary, isLoading: itineraryLoading } = useTripItinerary(tripId);
+  const updateActivity = useUpdateActivity();
+
+  if (tripLoading || itineraryLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Loading calendar...</p>
+      </div>
+    );
+  }
 
   if (!trip) {
     return (
@@ -25,14 +35,18 @@ export default function TripCalendarPage({ tripId }) {
     );
   }
 
-  const stops = data.getStopsForTrip(tripId);
-  const days = groupActivitiesByDate(data.getActivitiesForTrip(tripId));
+  const stops = itinerary?.stops || [];
+  const activities = itinerary?.activities || [];
+  const days = groupActivitiesByDate(activities);
 
   // Find which stop covers a given date so each day shows its city.
   function findCityForDate(date) {
-    const stop = stops.find(
-      (candidate) => date >= candidate.arrivalDate && date <= candidate.departureDate,
-    );
+    const stop = stops.find((candidate) => {
+      // Ensure we are comparing dates properly
+      const arr = new Date(candidate.arrivalDate).toISOString().slice(0, 10);
+      const dep = new Date(candidate.departureDate).toISOString().slice(0, 10);
+      return date >= arr && date <= dep;
+    });
     return stop ? stop.cityName : "";
   }
 
@@ -77,9 +91,15 @@ export default function TripCalendarPage({ tripId }) {
                       variant="ghost"
                       size="sm"
                       className="mt-1 -ml-3"
+                      disabled={updateActivity.isPending}
                       onClick={() => {
-                        data.toggleActivityCompleted(activity._id);
-                        showToast(activity.isCompleted ? "Marked as planned" : "Marked as done");
+                        updateActivity.mutate({
+                          tripId,
+                          activityId: activity._id,
+                          activityData: { isCompleted: !activity.isCompleted }
+                        }, {
+                          onSuccess: () => showToast(activity.isCompleted ? "Marked as planned" : "Marked as done")
+                        });
                       }}
                     >
                       {activity.isCompleted ? "Mark planned" : "Mark done"}

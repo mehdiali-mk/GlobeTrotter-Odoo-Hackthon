@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import PageHeader from "../components/ui/PageHeader";
 import Card, { CardHeader, CardBody } from "../components/ui/Card";
 import { ButtonLink } from "../components/ui/Button";
@@ -6,7 +6,7 @@ import Toolbar from "../components/ui/Toolbar";
 import ItineraryDay from "../components/ItineraryDay";
 import BudgetBar from "../components/BudgetBar";
 import { EmptyState } from "../components/ui/States";
-import { useAppData } from "../context/AppDataContext";
+import { useMyTrips, useTripItinerary } from "../hooks/useApi";
 import { formatMoney, parseTimeToMinutes, formatDateRange } from "../utils/format";
 import { sumExpenses } from "../utils/trip";
 import { getDayNumber } from "../services/tripService";
@@ -24,19 +24,26 @@ const sortOptions = [
 
 // Screen 9 — day by day itinerary of a selected place with its expenses.
 export default function ItineraryViewPage() {
-  const data = useAppData();
-  const trips = data.getMyTrips();
+  const { data: trips = [], isLoading: tripsLoading } = useMyTrips();
 
-  const [tripId, setTripId] = useState(trips[0] ? trips[0]._id : "");
+  const [tripId, setTripId] = useState("");
   const [searchText, setSearchText] = useState("");
   const [groupBy, setGroupBy] = useState("day");
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("time");
 
+  useEffect(() => {
+    if (trips.length > 0 && !tripId) {
+      setTripId(trips[0]._id);
+    }
+  }, [trips, tripId]);
+
+  const { data: itinerary, isLoading: itineraryLoading } = useTripItinerary(tripId);
+
   const trip = trips.find((item) => item._id === tripId) || null;
-  const stops = trip ? data.getStopsForTrip(trip._id) : [];
-  const allActivities = trip ? data.getActivitiesForTrip(trip._id) : [];
-  const tripExpenses = trip ? data.getExpensesForTrip(trip._id) : [];
+  const stops = itinerary?.stops || [];
+  const allActivities = itinerary?.activities || [];
+  const tripExpenses = itinerary?.expenses || [];
 
   const categories = Array.from(new Set(allActivities.map((activity) => activity.category)));
 
@@ -139,25 +146,30 @@ export default function ItineraryViewPage() {
               id="iv-trip"
               value={tripId}
               onChange={(event) => setTripId(event.target.value)}
+              disabled={tripsLoading}
               className="mt-1.5 w-full rounded-md border border-border bg-surface px-3 py-2 text-sm focus:border-primary focus:ring-2 focus:ring-ring/30 focus:outline-none"
             >
-              {trips.map((item) => (
+              {tripsLoading ? <option>Loading...</option> : trips.map((item) => (
                 <option key={item._id} value={item._id}>
                   {item.title}
                 </option>
               ))}
             </select>
           </label>
-          {trip ? (
+          {trip && !itineraryLoading ? (
             <p className="text-sm text-muted-foreground">
               {stops.map((stop) => stop.cityName).join(" → ") || "No stops yet"} ·{" "}
               {formatDateRange(trip.startDate, trip.endDate)}
             </p>
+          ) : trip && itineraryLoading ? (
+             <p className="text-sm text-muted-foreground">Loading itinerary...</p>
           ) : null}
         </div>
       </Toolbar>
 
-      {!trip ? (
+      {tripsLoading ? (
+         <div className="py-8 text-center text-muted-foreground">Loading your trips...</div>
+      ) : !trip ? (
         <EmptyState
           title="No trips yet"
           message="Create a trip to see its day by day itinerary here."
@@ -166,7 +178,9 @@ export default function ItineraryViewPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
           <div className="space-y-4">
-            {groups.length > 0 ? (
+            {itineraryLoading ? (
+              <div className="py-8 text-center text-muted-foreground">Loading itinerary...</div>
+            ) : groups.length > 0 ? (
               groups.map((group, index) => (
                 <ItineraryDay
                   key={group.key}

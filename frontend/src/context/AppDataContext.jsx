@@ -59,6 +59,8 @@ function writeStoredSession(value) {
   }
 }
 
+import { useCurrentUser } from "../hooks/useApi";
+
 export function AppDataProvider({ children }) {
   const [users, setUsers] = useState(seedUsers);
   const [cities, setCities] = useState(seedCities);
@@ -69,19 +71,22 @@ export function AppDataProvider({ children }) {
   const [expenses, setExpenses] = useState(seedExpenses);
   const [posts, setPosts] = useState(seedPosts);
   const [likedPostIds, setLikedPostIds] = useState([]);
-  const [userId, setUserId] = useState(currentUserId);
+  
+  const { data: apiUser, isLoading: isLoadingUser } = useCurrentUser();
   const [isSessionReady, setIsSessionReady] = useState(false);
+  const setUserId = () => {}; // Dummy to prevent crashes from legacy mock auth calls
 
-  // Restore the demo session after hydration so server and client markup match.
   useEffect(() => {
-    const stored = readStoredSession();
-    if (stored) setUserId(stored);
-    setIsSessionReady(true);
-  }, []);
+    if (!isLoadingUser) {
+      setIsSessionReady(true);
+    }
+  }, [isLoadingUser]);
 
   const value = useMemo(() => {
     const normalizedTrips = normalizeTrips(trips);
-    const currentUser = findById(users, userId);
+    // Use the real API user if available, fallback to null
+    const currentUser = apiUser || null;
+    const userId = currentUser ? currentUser._id : null;
 
     // --- reads ------------------------------------------------------------
     const getUserById = (id) => findById(users, id);
@@ -681,7 +686,7 @@ export function AppDataProvider({ children }) {
         region: values.region || "Europe",
         image: values.image || "",
         description: (values.description || "").trim(),
-        costIndex: values.costIndex || "$$",
+        costIndex: values.costIndex || "₹₹",
         popularity: Number(values.popularity || 4),
         isTopAttraction: values.isTopAttraction === true || values.isTopAttraction === "true",
       };
@@ -869,7 +874,7 @@ export function AppDataProvider({ children }) {
     expenses,
     posts,
     likedPostIds,
-    userId,
+    apiUser,
     isSessionReady,
   ]);
 

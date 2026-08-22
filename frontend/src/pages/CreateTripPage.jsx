@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import PageHeader, { SectionHeader } from "../components/ui/PageHeader";
 import Card, { CardHeader, CardBody } from "../components/ui/Card";
@@ -6,26 +6,39 @@ import Button, { ButtonLink } from "../components/ui/Button";
 import TripForm from "../components/TripForm";
 import CityCard from "../components/CityCard";
 import ActivityCard from "../components/ActivityCard";
-import { useAppData } from "../context/AppDataContext";
+import { useCurrentUser, useCities, useCatalog, useCreateTrip } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 
 // SCREEN 4 — Plan a new trip. The form sets the basics and the suggestions
 // below let the traveller pick the first place and a few activities up front.
 export default function CreateTripPage() {
-  const data = useAppData();
+  const createTripMutation = useCreateTrip();
   const { showToast } = useToast();
   const navigate = useNavigate();
-  const user = data.currentUser;
 
-  const [selectedCityId, setSelectedCityId] = useState(data.cities[0] ? data.cities[0]._id : "");
+  const { data: user } = useCurrentUser();
+  const { data: cities = [], isLoading: citiesLoading } = useCities();
+  const { data: catalog = [], isLoading: catalogLoading } = useCatalog();
+
+  const [selectedCityId, setSelectedCityId] = useState("");
   const [selectedActivityIds, setSelectedActivityIds] = useState([]);
 
-  const selectedCity = data.getCityById(selectedCityId);
-  const suggestedActivities = data.catalog.filter(
-    (activity) => !selectedCityId || activity.city === selectedCityId,
+  useEffect(() => {
+    if (cities.length > 0 && !selectedCityId) {
+      setSelectedCityId(cities[0]._id);
+    }
+  }, [cities, selectedCityId]);
+
+  const selectedCity = cities.find(c => c._id === selectedCityId);
+  const suggestedActivities = catalog.filter(
+    (activity) => {
+      const actCityId = typeof activity.city === 'object' ? activity.city._id : activity.city;
+      return !selectedCityId || actCityId === selectedCityId;
+    }
   );
+  
   const activitiesToShow =
-    suggestedActivities.length > 0 ? suggestedActivities : data.catalog.slice(0, 4);
+    suggestedActivities.length > 0 ? suggestedActivities : catalog.slice(0, 4);
 
   function toggleActivity(activityId) {
     setSelectedActivityIds((current) =>
@@ -36,9 +49,19 @@ export default function CreateTripPage() {
   }
 
   function handleSubmit(values) {
-    const trip = data.createTrip({ ...values, suggestedActivities: selectedActivityIds });
-    showToast(`"${trip.title}" created`);
-    navigate({ to: "/trips/$tripId/itinerary", params: { tripId: trip._id } });
+    createTripMutation.mutate(
+      { ...values, suggestedActivities: selectedActivityIds },
+      {
+        onSuccess: (response) => {
+          const trip = response.data.trip;
+          showToast(`"${trip.title}" created`);
+          navigate({ to: "/trips/$tripId/itinerary", params: { tripId: trip._id } });
+        },
+        onError: (error) => {
+          showToast(error.response?.data?.message || `Error creating trip: ${error.message}`, "danger");
+        }
+      }
+    );
   }
 
   return (
@@ -56,24 +79,30 @@ export default function CreateTripPage() {
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <Card as="section">
-          <CardHeader title="Trip details" description={`Organised by ${user.name}`} />
+          <CardHeader title="Trip details" description={`Organised by ${user?.name || 'you'}`} />
           <CardBody>
-            <TripForm
-              id="create-trip-page-form"
-              cities={data.cities}
-              placeSearch
-              selectedCityId={selectedCityId}
-              onSelectCity={setSelectedCityId}
-              onSubmit={handleSubmit}
-              footer={
-                <div className="flex flex-wrap gap-2">
-                  <Button type="submit">Create trip</Button>
-                  <ButtonLink to="/discover" variant="secondary">
-                    Browse destinations
-                  </ButtonLink>
-                </div>
-              }
-            />
+            {citiesLoading ? (
+               <div className="py-4 text-center text-muted-foreground">Loading destinations...</div>
+            ) : (
+              <TripForm
+                id="create-trip-page-form"
+                cities={cities}
+                placeSearch
+                selectedCityId={selectedCityId}
+                onSelectCity={setSelectedCityId}
+                onSubmit={handleSubmit}
+                footer={
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="submit" disabled={createTripMutation.isPending}>
+                      {createTripMutation.isPending ? "Creating..." : "Create trip"}
+                    </Button>
+                    <ButtonLink to="/discover" variant="secondary">
+                      Browse destinations
+                    </ButtonLink>
+                  </div>
+                }
+              />
+            )}
           </CardBody>
         </Card>
 
@@ -122,41 +151,49 @@ export default function CreateTripPage() {
           }
         />
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {data.cities.map((city) => (
-            <CityCard
-              key={city._id}
-              city={city}
-              action={
-                <Button
-                  variant={city._id === selectedCityId ? "primary" : "secondary"}
-                  size="sm"
-                  className="w-full justify-center"
-                  onClick={() => setSelectedCityId(city._id)}
-                >
-                  {city._id === selectedCityId ? "Selected place" : "Select this place"}
-                </Button>
-              }
-            />
-          ))}
-        </div>
+        {citiesLoading ? (
+           <div className="py-4 text-center text-muted-foreground">Loading destinations...</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {cities.map((city) => (
+              <CityCard
+                key={city._id}
+                city={city}
+                action={
+                  <Button
+                    variant={city._id === selectedCityId ? "primary" : "secondary"}
+                    size="sm"
+                    className="w-full justify-center"
+                    onClick={() => setSelectedCityId(city._id)}
+                  >
+                    {city._id === selectedCityId ? "Selected place" : "Select this place"}
+                  </Button>
+                }
+              />
+            ))}
+          </div>
+        )}
 
         <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          {activitiesToShow.map((activity) => (
-            <ActivityCard
-              key={activity._id}
-              activity={activity}
-              action={
-                <Button
-                  variant={selectedActivityIds.includes(activity._id) ? "primary" : "secondary"}
-                  size="sm"
-                  onClick={() => toggleActivity(activity._id)}
-                >
-                  {selectedActivityIds.includes(activity._id) ? "Added" : "Add"}
-                </Button>
-              }
-            />
-          ))}
+          {catalogLoading ? (
+            <div className="py-4 text-center text-muted-foreground">Loading activities...</div>
+          ) : (
+            activitiesToShow.map((activity) => (
+              <ActivityCard
+                key={activity._id}
+                activity={activity}
+                action={
+                  <Button
+                    variant={selectedActivityIds.includes(activity._id) ? "primary" : "secondary"}
+                    size="sm"
+                    onClick={() => toggleActivity(activity._id)}
+                  >
+                    {selectedActivityIds.includes(activity._id) ? "Added" : "Add"}
+                  </Button>
+                }
+              />
+            ))
+          )}
         </div>
       </section>
     </>

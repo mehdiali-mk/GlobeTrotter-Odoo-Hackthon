@@ -2,6 +2,7 @@ import Trip from '../models/Trip.model.js';
 import User from '../models/User.model.js';
 import ItineraryStop from '../models/ItineraryStop.model.js';
 import catchAsync from '../utils/catchAsync.util.js';
+import AppError from '../utils/appError.util.js';
 
 // ─── ANALYTICS ──────────────────────────────────────────────────────────────────
 // Admin-only endpoint that aggregates platform-wide statistics.
@@ -71,3 +72,29 @@ export const getAnalytics = catchAsync(async (req, res, next) => {
     }
   });
 });
+
+// ─── USER MANAGEMENT ────────────────────────────────────────────────────────────
+
+export const updateUserRole = catchAsync(async (req, res, next) => {
+  const { role } = req.body;
+  
+  if (!['user', 'admin'].includes(role)) {
+    return next(new AppError('Invalid role specified', 400));
+  }
+  
+  const user = await User.findByIdAndUpdate(
+    req.params.id,
+    { role },
+    { new: true, runValidators: true }
+  );
+  
+  if (!user) {
+    return next(new AppError('No user found with that ID', 404));
+  }
+  
+  res.status(200).json({
+    status: 'success',
+    data: { user }
+  });
+});
+

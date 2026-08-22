@@ -9,7 +9,7 @@ import Modal from "../components/ui/Modal";
 import TripCard from "../components/TripCard";
 import TripForm from "../components/TripForm";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { useAppData } from "../context/AppDataContext";
+import { useCurrentUser, useCities, useMyTrips, useUpdateTrip, useDeleteTrip, useJoinTrip, useCloneTrip } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 import { tripStatuses } from "../utils/trip";
 
@@ -25,12 +25,11 @@ const groupOptions = [
   { value: "none", label: "Group by: nothing" },
 ];
 
-const statusLabels = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed" };
+const statusLabels = { ongoing: "Ongoing", upcoming: "Upcoming", completed: "Completed", unplanned: "Unplanned" };
 // Ongoing first, matching the reference layout.
-const categoryOrder = ["ongoing", "upcoming", "completed"];
+const categoryOrder = ["ongoing", "upcoming", "completed", "unplanned"];
 
 export default function TripsPage() {
-  const data = useAppData();
   const { showToast } = useToast();
   const navigate = useNavigate();
 
@@ -42,8 +41,14 @@ export default function TripsPage() {
   const [tripToDelete, setTripToDelete] = useState(null);
   const [joinCode, setJoinCode] = useState("");
 
-  const user = data.currentUser;
-  const allTrips = data.getMyTrips();
+  const { data: user } = useCurrentUser();
+  const { data: cities = [] } = useCities();
+  const { data: allTrips = [], isLoading: tripsLoading } = useMyTrips();
+  
+  const updateTrip = useUpdateTrip();
+  const deleteTrip = useDeleteTrip();
+  const joinTrip = useJoinTrip();
+  const cloneTrip = useCloneTrip();
 
   const visibleTrips = useMemo(() => {
     const search = searchText.trim().toLowerCase();
@@ -53,7 +58,7 @@ export default function TripsPage() {
       const matchesSearch =
         search === "" ||
         trip.title.toLowerCase().includes(search) ||
-        trip.description.toLowerCase().includes(search);
+        (trip.description && trip.description.toLowerCase().includes(search));
       return matchesStatus && matchesSearch;
     });
 
@@ -83,43 +88,74 @@ export default function TripsPage() {
   }, [visibleTrips, groupBy]);
 
   function handleSaveEdit(values) {
-    data.updateTrip(editingTrip._id, values);
-    showToast(`"${values.title}" updated`);
-    setEditingTrip(null);
+    updateTrip.mutate({ tripId: editingTrip._id, ...values }, {
+      onSuccess: () => {
+        showToast(`"${values.title}" updated`);
+        setEditingTrip(null);
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to update trip", "danger")
+    });
   }
 
   function handleDelete() {
     const title = tripToDelete.title;
-    data.deleteTrip(tripToDelete._id);
-    setTripToDelete(null);
-    showToast(`"${title}" deleted`, "danger");
+    deleteTrip.mutate(tripToDelete._id, {
+      onSuccess: () => {
+        setTripToDelete(null);
+        showToast(`"${title}" deleted`, "danger");
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to delete trip", "danger")
+    });
   }
 
   function handleShare(trip) {
-    if (trip.isPublic) {
-      data.setTripVisibility(trip._id, false);
-      showToast(`"${trip.title}" is private again`);
-      return;
-    }
-    data.shareTrip(trip._id, trip.description);
-    showToast(`"${trip.title}" shared to Community`);
+    updateTrip.mutate({ tripId: trip._id, isPublic: !trip.isPublic }, {
+      onSuccess: () => {
+        showToast(trip.isPublic ? `"${trip.title}" is private again` : `"${trip.title}" shared to Community`);
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to update visibility", "danger")
+    });
   }
 
   function handleCopy(trip) {
-    const copy = data.cloneTrip(trip._id);
-    if (!copy) return;
-    showToast(`Copied to "${copy.title}"`);
-    navigate({ to: "/trips/$tripId", params: { tripId: copy._id } });
+    if (!trip.slug) {
+      showToast("Cannot copy trip without a slug.", "danger");
+      return;
+    }
+    
+    cloneTrip.mutate(trip.slug, {
+      onSuccess: (data) => {
+        showToast(`Copied to "${data.data.trip.title}"`);
+        navigate({ to: "/trips/$tripId", params: { tripId: data.data.trip._id } });
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || "This trip must be public to clone it.", "danger");
+      }
+    });
   }
 
   function handleJoinByCode(event) {
     event.preventDefault();
-    const result = data.joinTripByCode(joinCode);
-    showToast(result.message, result.ok ? "success" : "danger");
-    if (result.ok) {
-      setJoinCode("");
-      navigate({ to: "/trips/$tripId", params: { tripId: result.trip._id } });
-    }
+    if (!joinCode) return;
+    
+    joinTrip.mutate({ joinCode }, {
+      onSuccess: (data) => {
+        showToast(data.message || "Joined successfully", "success");
+        setJoinCode("");
+        navigate({ to: "/trips/$tripId", params: { tripId: data.data.trip._id } });
+      },
+      onError: (err) => {
+        showToast(err.response?.data?.message || "Failed to join trip", "danger");
+      }
+    });
+  }
+
+  if (tripsLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Loading your trips...</p>
+      </div>
+    );
   }
 
   return (
@@ -154,7 +190,7 @@ export default function TripsPage() {
               { value: "all", label: `Filter: all (${allTrips.length})` },
               ...tripStatuses.map((status) => ({
                 value: status,
-                label: `Filter: ${statusLabels[status]} (${statusCounts[status]})`,
+                label: `Filter: ${statusLabels[status]} (${statusCounts[status] || 0})`,
               })),
             ],
           },
@@ -179,7 +215,7 @@ export default function TripsPage() {
             value={joinCode}
             onChange={(event) => setJoinCode(event.target.value)}
           />
-          <Button type="submit" variant="secondary">
+          <Button type="submit" variant="secondary" disabled={joinTrip.isPending}>
             Join trip
           </Button>
         </form>
@@ -197,13 +233,14 @@ export default function TripsPage() {
               />
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {category.trips.map((trip) => {
-                  const isOwner = trip.creator === user._id;
+                  const creatorId = typeof trip.creator === 'object' ? trip.creator._id : trip.creator;
+                  const isOwner = creatorId === user?._id;
+                  
                   return (
                     <TripCard
                       key={trip._id}
                       trip={trip}
-                      stops={data.getStopsForTrip(trip._id)}
-                      members={data.getMembersForTrip(trip)}
+                      members={trip.members || []}
                       actions={
                         <>
                           <ButtonLink to="/trips/$tripId" params={{ tripId: trip._id }} size="sm">
@@ -222,6 +259,7 @@ export default function TripsPage() {
                                 variant="secondary"
                                 size="sm"
                                 onClick={() => handleShare(trip)}
+                                disabled={updateTrip.isPending}
                               >
                                 {trip.isPublic ? "Unshare" : "Share"}
                               </Button>
@@ -234,7 +272,7 @@ export default function TripsPage() {
                               </Button>
                             </>
                           ) : (
-                            <Button variant="secondary" size="sm" onClick={() => handleCopy(trip)}>
+                            <Button variant="secondary" size="sm" onClick={() => handleCopy(trip)} disabled={cloneTrip.isPending}>
                               Copy trip
                             </Button>
                           )}
@@ -283,7 +321,7 @@ export default function TripsPage() {
             <Button variant="secondary" onClick={() => setEditingTrip(null)}>
               Cancel
             </Button>
-            <Button type="submit" form="edit-trip-form">
+            <Button type="submit" form="edit-trip-form" disabled={updateTrip.isPending}>
               Save changes
             </Button>
           </>
@@ -292,7 +330,7 @@ export default function TripsPage() {
         {editingTrip ? (
           <TripForm
             id="edit-trip-form"
-            cities={data.cities}
+            cities={cities}
             trip={editingTrip}
             showFirstStop={false}
             onSubmit={handleSaveEdit}
@@ -311,6 +349,7 @@ export default function TripsPage() {
         confirmLabel="Delete trip"
         onConfirm={handleDelete}
         onCancel={() => setTripToDelete(null)}
+        loading={deleteTrip.isPending}
       />
     </>
   );

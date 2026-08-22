@@ -7,24 +7,42 @@ import { NotFoundState, EmptyState } from "../components/ui/States";
 import TripTabs from "../components/TripTabs";
 import BudgetBar from "../components/BudgetBar";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { useAppData } from "../context/AppDataContext";
 import { canEditTrip } from "../utils/permissions";
 import { useToast } from "../context/ToastContext";
 import { getBudgetSummary, groupExpensesByCategory, sumExpenses } from "../utils/trip";
 import { formatMoney, formatDate, countDays } from "../utils/format";
-import { toDateInputValue } from "../services/tripService";
+import { 
+  useTripItinerary, 
+  useCurrentUser, 
+  useAddExpense, 
+  useDeleteExpense 
+} from "../hooks/useApi";
 
-const expenseCategories = ["Transport", "Stay", "Food", "Activities", "Other"];
+// Using the exact enum values from Expense.model.js
+const expenseCategories = ["Transport", "Stay", "Activities", "Meals", "Miscellaneous"];
+
+// Format for HTML date input YYYY-MM-DD
+function toDateInputValue(dateString) {
+  const date = new Date(dateString);
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return local.toISOString().split("T")[0];
+}
 
 export default function TripBudgetPage({ tripId }) {
-  const data = useAppData();
   const { showToast } = useToast();
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState(null);
 
-  const trip = data.getTripById(tripId);
+  const { data: user } = useCurrentUser();
+  const { data: itineraryData, isLoading, isError } = useTripItinerary(tripId);
+  const addExpense = useAddExpense();
+  const deleteExpense = useDeleteExpense();
 
-  if (!trip) {
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading budget...</div>;
+  }
+
+  if (isError || !itineraryData || !itineraryData.trip) {
     return (
       <NotFoundState
         title="Trip not found"
@@ -35,8 +53,7 @@ export default function TripBudgetPage({ tripId }) {
     );
   }
 
-  const expenses = data.getExpensesForTrip(tripId);
-  const activities = data.getActivitiesForTrip(tripId);
+  const { trip, expenses = [], activities = [] } = itineraryData;
   const summary = getBudgetSummary(trip, expenses, activities);
   const categoryTotals = groupExpensesByCategory(expenses).sort(
     (first, second) => second.amount - first.amount,
@@ -46,18 +63,49 @@ export default function TripBudgetPage({ tripId }) {
   const perDay = days > 0 ? Math.round(totalSpent / days) : 0;
 
   function handleAddExpense(values) {
-    data.addExpense(tripId, values);
-    showToast(`"${values.title}" added to the budget`);
-    setIsFormOpen(false);
+    addExpense.mutate({ tripId, ...values }, {
+      onSuccess: () => {
+        showToast(`"${values.title}" added to the budget`);
+        setIsFormOpen(false);
+      },
+      onError: (err) => showToast(err.response?.data?.message || "Failed to add expense", "danger")
+    });
   }
 
   function handleDeleteExpense() {
-    data.removeExpense(expenseToDelete._id);
-    setExpenseToDelete(null);
-    showToast("Expense removed", "danger");
+    deleteExpense.mutate({ tripId, expenseId: expenseToDelete._id }, {
+      onSuccess: () => {
+        setExpenseToDelete(null);
+        showToast("Expense removed", "danger");
+      },
+      onError: (err) => {
+        setExpenseToDelete(null);
+        showToast(err.response?.data?.message || "Failed to remove expense", "danger");
+      }
+    });
   }
 
-  const canEdit = canEditTrip(trip, data.currentUser);
+  const canEdit = canEditTrip(trip, user);
+
+  // Helper to extract a member ID securely regardless of whether members.user is populated or not
+  const getMemberId = (member) => {
+    return typeof member.user === 'object' && member.user !== null ? member.user._id : member.user;
+  };
+  
+  // Create a quick lookup for member details for "Who paid what"
+  // Since Trip members might be populated in Trip, and Expense paidBy is definitely populated.
+  const memberLookup = {};
+  trip.members.forEach(m => {
+    if (m.user && typeof m.user === 'object') {
+      memberLookup[m.user._id] = m.user;
+    }
+  });
+  // Also enrich from expenses since they are fully populated
+  expenses.forEach(e => {
+    if (e.paidBy && typeof e.paidBy === 'object') {
+      memberLookup[e.paidBy._id] = e.paidBy;
+    }
+  });
 
   return (
     <>
@@ -84,7 +132,7 @@ export default function TripBudgetPage({ tripId }) {
 
       {isFormOpen && canEdit ? (
         <div className="mb-6">
-          <ExpenseForm trip={trip} onAdd={handleAddExpense} onCancel={() => setIsFormOpen(false)} />
+          <ExpenseForm trip={trip} user={user} memberLookup={memberLookup} onAdd={handleAddExpense} onCancel={() => setIsFormOpen(false)} />
         </div>
       ) : null}
 
@@ -152,13 +200,24 @@ export default function TripBudgetPage({ tripId }) {
             />
             <CardBody>
               <ul className="space-y-3 text-sm">
-                {trip.members.map((memberId) => {
-                  const member = data.getUserById(memberId);
+                {trip.members.map((m) => {
+                  const memberId = getMemberId(m);
+                  const memberData = memberLookup[memberId] || m.user;
+                  const memberName = memberData?.name || "Member";
+                  
                   const paid = sumExpenses(
-                    expenses.filter((expense) => expense.paidBy === memberId),
+                    expenses.filter((expense) => {
+                      const payerId = expense.paidBy?._id || expense.paidBy;
+                      return payerId === memberId;
+                    }),
                   );
                   const owes = expenses.reduce((total, expense) => {
-                    if (!expense.splitAmong.includes(memberId)) return total;
+                    // Check if member is in splitAmong array
+                    const isInSplit = expense.splitAmong.some(s => {
+                      const sId = s._id || s;
+                      return sId === memberId;
+                    });
+                    if (!isInSplit) return total;
                     return total + expense.amount / expense.splitAmong.length;
                   }, 0);
                   const balance = Math.round(paid - owes);
@@ -166,7 +225,7 @@ export default function TripBudgetPage({ tripId }) {
                   return (
                     <li key={memberId} className="flex items-center justify-between gap-3">
                       <span className="min-w-0 truncate">
-                        {member ? member.name : "Member"}
+                        {memberName}
                         <span className="text-muted-foreground"> · paid {formatMoney(paid)}</span>
                       </span>
                       <span
@@ -192,7 +251,7 @@ export default function TripBudgetPage({ tripId }) {
             {expenses.length > 0 ? (
               <ul>
                 {expenses.map((expense) => {
-                  const payer = data.getUserById(expense.paidBy);
+                  const payer = expense.paidBy;
                   return (
                     <li
                       key={expense._id}
@@ -202,7 +261,7 @@ export default function TripBudgetPage({ tripId }) {
                         <p className="truncate text-sm font-medium">{expense.title}</p>
                         <p className="mt-0.5 text-xs text-muted-foreground">
                           {expense.category} · {formatDate(expense.date)}
-                          {payer ? ` · paid by ${payer.name}` : ""}
+                          {payer && payer.name ? ` · paid by ${payer.name}` : ""}
                         </p>
                         <p className="mt-1 text-xs text-subtle-foreground">
                           Split among {expense.splitAmong.length}{" "}
@@ -252,20 +311,20 @@ export default function TripBudgetPage({ tripId }) {
         confirmLabel="Remove"
         onConfirm={handleDeleteExpense}
         onCancel={() => setExpenseToDelete(null)}
+        loading={deleteExpense.isPending}
       />
     </>
   );
 }
 
-// Expense form. Values go straight into the shared session dataset.
-function ExpenseForm({ trip, onAdd, onCancel }) {
-  const data = useAppData();
+// Expense form.
+function ExpenseForm({ trip, user, memberLookup, onAdd, onCancel }) {
   const [values, setValues] = useState({
     title: "",
     amount: "",
     category: expenseCategories[0],
     date: toDateInputValue(new Date().toISOString()),
-    paidBy: data.currentUser._id,
+    paidBy: user?._id || "",
   });
   const [errors, setErrors] = useState({});
 
@@ -281,7 +340,10 @@ function ExpenseForm({ trip, onAdd, onCancel }) {
     if (!(Number(values.amount) > 0)) nextErrors.amount = "Enter an amount above zero.";
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-    onAdd({ ...values, splitAmong: trip.members });
+    
+    // Convert members to an array of IDs for splitAmong
+    const memberIds = trip.members.map(m => typeof m.user === 'object' ? m.user._id : m.user);
+    onAdd({ ...values, splitAmong: memberIds });
   }
 
   return (
@@ -298,7 +360,7 @@ function ExpenseForm({ trip, onAdd, onCancel }) {
           />
           <TextField
             id="expense-amount"
-            label="Amount (USD)"
+            label="Amount (INR)"
             type="number"
             min="0"
             value={values.amount}
@@ -324,9 +386,10 @@ function ExpenseForm({ trip, onAdd, onCancel }) {
             label="Paid by"
             value={values.paidBy}
             onChange={(event) => updateValue("paidBy", event.target.value)}
-            options={trip.members.map((memberId) => {
-              const member = data.getUserById(memberId);
-              return { value: memberId, label: member ? member.name : memberId };
+            options={trip.members.map((m) => {
+              const memberId = typeof m.user === 'object' ? m.user._id : m.user;
+              const memberName = memberLookup[memberId]?.name || "Member";
+              return { value: memberId, label: memberName };
             })}
           />
           <div className="flex items-end gap-2">

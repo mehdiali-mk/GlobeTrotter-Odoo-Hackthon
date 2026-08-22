@@ -1,6 +1,7 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import morgan from 'morgan';
+import cors from 'cors';
 import AppError from './utils/appError.util.js';
 import { globalErrorHandler } from './controllers/Errors.controller.js';
 
@@ -19,11 +20,13 @@ dotenv.config({ path: './.env' });
 const app = express();
 
 // ─── GLOBAL MIDDLEWARE ──────────────────────────────────────────────────────────
+app.use(cors());
+
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '10mb' }));
 app.set('query parser', 'extended');
 
 // ─── MOUNT ROUTES ───────────────────────────────────────────────────────────────

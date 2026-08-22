@@ -8,6 +8,12 @@ const router = express.Router({ mergeParams: true });
 
 router.use(protect);
 
+router.patch(
+  '/reorder',
+  checkTripMembership('editor'),
+  itineraryStopController.reorderStops
+);
+
 router
   .route('/')
   .get(

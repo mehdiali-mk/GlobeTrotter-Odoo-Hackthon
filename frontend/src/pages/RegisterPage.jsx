@@ -5,7 +5,7 @@ import Button from "../components/ui/Button";
 import { TextField, TextAreaField } from "../components/ui/Field";
 import AuthAside from "../components/AuthAside";
 import PhotoUpload from "../components/PhotoUpload";
-import { useAppData } from "../context/AppDataContext";
+import { useSignup } from "../hooks/useApi";
 import { useToast } from "../context/ToastContext";
 import { validateFields, validateProfileField } from "../utils/validation";
 
@@ -23,7 +23,7 @@ const REQUIRED_FIELDS = [
 // SCREEN 2 (registration half). Creates a real account in the session dataset.
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const data = useAppData();
+  const signupMutation = useSignup();
   const { showToast } = useToast();
   const [values, setValues] = useState({
     firstName: "",
@@ -38,7 +38,6 @@ export default function RegisterPage() {
   });
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function updateField(field, value) {
     const nextValues = { ...values, [field]: value };
@@ -65,18 +64,28 @@ export default function RegisterPage() {
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    setIsSubmitting(true);
-    const result = data.registerUser({
-      ...values,
-      name: `${values.firstName.trim()} ${values.lastName.trim()}`,
-    });
-    if (!result.ok) {
-      setIsSubmitting(false);
-      setFormError(result.message);
-      return;
-    }
-    showToast(result.message);
-    navigate({ to: "/landing" });
+    signupMutation.mutate(
+      {
+        name: `${values.firstName.trim()} ${values.lastName.trim()}`,
+        email: values.email,
+        password: values.password,
+        passwordConfirm: values.password, // Added because backend requires it
+        phone: values.phone,
+        city: values.city,
+        country: values.country,
+        bio: values.bio,
+        photo: values.photo,
+      },
+      {
+        onSuccess: () => {
+          showToast(`Welcome to GlobeTrotter!`);
+          navigate({ to: "/landing" });
+        },
+        onError: (error) => {
+          setFormError(error.response?.data?.message || "Failed to create account. Please try again.");
+        }
+      }
+    );
   }
 
   return (
@@ -187,8 +196,8 @@ export default function RegisterPage() {
           <p className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger">{formError}</p>
         ) : null}
 
-        <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
-          {isSubmitting ? "Creating account…" : "Register User"}
+        <Button type="submit" size="lg" className="w-full" disabled={signupMutation.isPending}>
+          {signupMutation.isPending ? "Creating account…" : "Register User"}
         </Button>
       </form>
 

@@ -8,13 +8,14 @@ import TripCard from "../components/TripCard";
 import CityCard from "../components/CityCard";
 import BudgetBar from "../components/BudgetBar";
 import { useAppData } from "../context/AppDataContext";
+import { useMyTrips } from "../hooks/useApi";
 import { getNextUpcomingTrip, sumExpenses } from "../utils/trip";
 import { formatDateRange, countDays, daysUntil, formatMoney } from "../utils/format";
 
 export default function DashboardPage() {
   const data = useAppData();
   const user = data.currentUser;
-  const trips = data.getMyTrips();
+  const { data: trips = [], isLoading: tripsLoading } = useMyTrips();
   const upcomingTrip = getNextUpcomingTrip(trips);
   const recentTrips = trips
     .slice()
@@ -28,6 +29,14 @@ export default function DashboardPage() {
     (total, trip) => total + sumExpenses(data.getExpensesForTrip(trip._id)),
     0,
   );
+
+  if (tripsLoading) {
+    return (
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground">Loading your dashboard...</p>
+      </div>
+    );
+  }
 
   return (
     <>

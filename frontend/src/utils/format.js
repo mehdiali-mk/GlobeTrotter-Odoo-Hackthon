@@ -21,7 +21,7 @@ export function formatDateRange(startDate, endDate) {
 
 export function formatMoney(amount) {
   if (amount === null || amount === undefined) return "—";
-  return `$${Number(amount).toLocaleString("en-US")}`;
+  return `₹${Number(amount).toLocaleString("en-IN")}`;
 }
 
 export function formatHours(hours) {

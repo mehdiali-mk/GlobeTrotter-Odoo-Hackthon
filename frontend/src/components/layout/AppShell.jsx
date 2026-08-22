@@ -4,17 +4,22 @@ import Sidebar, { NavLinks, BrandMark, navigationItems, adminNavigationItem } fr
 import Avatar from "../ui/Avatar";
 import Button, { ButtonLink } from "../ui/Button";
 import Badge from "../ui/Badge";
-import { useAppData } from "../../context/AppDataContext";
 import { useToast } from "../../context/ToastContext";
+import { useCurrentUser, useLogout } from "../../hooks/useApi";
 
 // Authenticated layout: sidebar on desktop, slide-down menu on small screens.
 export default function AppShell() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAccountOpen, setIsAccountOpen] = useState(false);
   const navigate = useNavigate();
+  const logout = useLogout();
   const { showToast } = useToast();
-  const data = useAppData();
-  const user = data.currentUser;
+  
+  const { data: user, isLoading } = useCurrentUser();
+
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center">Loading...</div>;
+  }
 
   if (!user) {
     return (
@@ -34,15 +39,9 @@ export default function AppShell() {
 
   const items = user.role === "admin" ? [...navigationItems, adminNavigationItem] : navigationItems;
 
-  function handleSwitchUser(nextId) {
-    const next = data.switchUser(nextId);
-    setIsAccountOpen(false);
-    if (next) showToast(`Now viewing as ${next.name} (${next.role})`);
-  }
-
   function handleSignOut() {
     setIsAccountOpen(false);
-    data.signOut();
+    logout();
     showToast("Signed out");
     navigate({ to: "/login" });
   }
@@ -111,25 +110,6 @@ export default function AppShell() {
                   >
                     View profile
                   </Link>
-
-                  <div className="mt-3 border-t border-border pt-3">
-                    <p className="eyebrow">Switch demo user</p>
-                    <div className="mt-1.5 space-y-1">
-                      {data.users.map((person) => (
-                        <button
-                          key={person._id}
-                          type="button"
-                          onClick={() => handleSwitchUser(person._id)}
-                          className={`flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-surface-muted ${
-                            person._id === user._id ? "bg-primary-soft text-primary" : ""
-                          }`}
-                        >
-                          <span className="truncate">{person.name}</span>
-                          <span className="text-xs text-muted-foreground">{person.role}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
                   <Button
                     variant="secondary"

@@ -13,6 +13,7 @@ import { useAppData } from "../context/AppDataContext";
 import { useToast } from "../context/ToastContext";
 import { formatDate } from "../utils/format";
 import { validateFields, validateProfileField } from "../utils/validation";
+import { useUpdateProfile } from "../hooks/useApi";
 
 const EDITABLE_FIELDS = ["firstName", "lastName", "email", "phone", "city", "country", "bio"];
 
@@ -56,6 +57,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [values, setValues] = useState(() => buildFormValues(user));
   const [errors, setErrors] = useState({});
+  const updateProfileMutation = useUpdateProfile();
 
   const savedCities = (user.savedDestinations || [])
     .map((cityId) => data.getCityById(cityId))
@@ -97,19 +99,26 @@ export default function ProfilePage() {
     const nextErrors = validateFields(EDITABLE_FIELDS, values);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
-
-    data.updateProfile({
-      name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
-      email: values.email.trim(),
-      phone: values.phone.trim(),
-      city: values.city.trim(),
-      country: values.country.trim(),
-      bio: values.bio.trim(),
-      photo: values.photo,
-    });
-
-    showToast("Profile updated");
-    setIsEditing(false);
+    updateProfileMutation.mutate(
+      {
+        name: `${values.firstName.trim()} ${values.lastName.trim()}`.trim(),
+        email: values.email.trim(),
+        phone: values.phone.trim(),
+        city: values.city.trim(),
+        country: values.country.trim(),
+        bio: values.bio.trim(),
+        photo: values.photo,
+      },
+      {
+        onSuccess: () => {
+          showToast("Profile updated");
+          setIsEditing(false);
+        },
+        onError: (error) => {
+          showToast(`Update failed: ${error.response?.data?.message || error.message}`);
+        }
+      }
+    );
   }
 
   const details = [
@@ -219,8 +228,10 @@ export default function ProfilePage() {
                   onChange={(event) => updateField("bio", event.target.value)}
                 />
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit">Save changes</Button>
-                  <Button variant="secondary" onClick={cancelEditing}>
+                  <Button type="submit" disabled={updateProfileMutation.isPending}>
+                    {updateProfileMutation.isPending ? "Saving..." : "Save changes"}
+                  </Button>
+                  <Button variant="secondary" onClick={cancelEditing} disabled={updateProfileMutation.isPending}>
                     Cancel
                   </Button>
                 </div>

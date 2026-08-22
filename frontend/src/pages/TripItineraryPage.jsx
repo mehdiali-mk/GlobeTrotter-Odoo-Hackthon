@@ -8,7 +8,6 @@ import TripTabs from "../components/TripTabs";
 import StopFormModal from "../components/StopFormModal";
 import ActivityFormModal from "../components/ActivityFormModal";
 import ConfirmDialog from "../components/ConfirmDialog";
-import { useAppData } from "../context/AppDataContext";
 import { canEditTrip } from "../utils/permissions";
 import { useToast } from "../context/ToastContext";
 import { sumActivityCost } from "../utils/trip";
@@ -19,18 +18,44 @@ import {
   formatDate,
   countNights,
 } from "../utils/format";
+import { 
+  useTripItinerary, 
+  useCurrentUser, 
+  useAddStop, 
+  useUpdateStop, 
+  useDeleteStop, 
+  useAddActivity, 
+  useUpdateActivity, 
+  useDeleteActivity,
+  useCities,
+  useCatalog
+} from "../hooks/useApi";
 
 export default function TripItineraryPage({ tripId }) {
-  const data = useAppData();
   const { showToast } = useToast();
 
   const [stopModal, setStopModal] = useState({ open: false, stop: null });
   const [activityModal, setActivityModal] = useState({ open: false, stop: null, activity: null });
   const [confirm, setConfirm] = useState(null);
 
-  const trip = data.getTripById(tripId);
+  const { data: user } = useCurrentUser();
+  const { data: itineraryData, isLoading, isError } = useTripItinerary(tripId);
+  const { data: cities = [] } = useCities();
+  const { data: catalog = [] } = useCatalog();
 
-  if (!trip) {
+  const addStop = useAddStop();
+  const updateStop = useUpdateStop();
+  const deleteStop = useDeleteStop();
+  
+  const addActivity = useAddActivity();
+  const updateActivity = useUpdateActivity();
+  const deleteActivity = useDeleteActivity();
+
+  if (isLoading) {
+    return <div className="p-8 text-center text-muted-foreground">Loading itinerary...</div>;
+  }
+
+  if (isError || !itineraryData || !itineraryData.trip) {
     return (
       <NotFoundState
         title="Trip not found"
@@ -41,42 +66,72 @@ export default function TripItineraryPage({ tripId }) {
     );
   }
 
-  const stops = data.getStopsForTrip(tripId);
+  const { trip, stops = [], activities = [] } = itineraryData;
+  const canEdit = canEditTrip(trip, user);
 
   function handleSaveStop(values) {
     if (stopModal.stop) {
-      data.updateStop(stopModal.stop._id, values);
-      showToast("Stop updated");
+      updateStop.mutate({ tripId, stopId: stopModal.stop._id, ...values }, {
+        onSuccess: () => showToast("Stop updated"),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to update stop", "danger")
+      });
     } else {
-      const stop = data.addStop(tripId, values);
-      showToast(`${stop.cityName} added to the route`);
+      addStop.mutate({ tripId, ...values }, {
+        onSuccess: () => showToast(`Stop added to the route`),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to add stop", "danger")
+      });
     }
     setStopModal({ open: false, stop: null });
   }
 
   function handleSaveActivity(values) {
     if (activityModal.activity) {
-      data.updateActivity(activityModal.activity._id, values);
-      showToast("Activity updated");
+      updateActivity.mutate({ tripId, activityId: activityModal.activity._id, ...values }, {
+        onSuccess: () => showToast("Activity updated"),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to update activity", "danger")
+      });
     } else {
-      data.addActivity(tripId, activityModal.stop._id, values);
-      showToast(`"${values.title}" added to the itinerary`);
+      addActivity.mutate({ tripId, stop: activityModal.stop._id, ...values }, {
+        onSuccess: () => showToast(`"${values.title}" added to the itinerary`),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to add activity", "danger")
+      });
     }
     setActivityModal({ open: false, stop: null, activity: null });
   }
 
   function handleConfirm() {
     if (confirm.kind === "stop") {
-      data.removeStop(confirm.id);
-      showToast("Stop removed", "danger");
+      deleteStop.mutate({ tripId, stopId: confirm.id }, {
+        onSuccess: () => showToast("Stop removed", "danger"),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to remove stop", "danger")
+      });
     } else {
-      data.removeActivity(confirm.id);
-      showToast("Activity removed", "danger");
+      deleteActivity.mutate({ tripId, activityId: confirm.id }, {
+        onSuccess: () => showToast("Activity removed", "danger"),
+        onError: (err) => showToast(err.response?.data?.message || "Failed to remove activity", "danger")
+      });
     }
     setConfirm(null);
   }
+  
+  function handleToggleActivity(activity) {
+    updateActivity.mutate({ 
+      tripId, 
+      activityId: activity._id, 
+      isCompleted: !activity.isCompleted 
+    }, {
+      onSuccess: () => showToast(activity.isCompleted ? "Marked as planned" : "Marked as done"),
+      onError: (err) => showToast(err.response?.data?.message || "Failed to update status", "danger")
+    });
+  }
 
-  const canEdit = canEditTrip(trip, data.currentUser);
+  // We are not implementing move stop or move activity right now
+  function handleMoveStop(stop, direction) {
+    showToast("Reordering is not supported yet.", "danger");
+  }
+  function handleMoveActivity(activity, direction) {
+    showToast("Reordering is not supported yet.", "danger");
+  }
 
   return (
     <>
@@ -120,11 +175,11 @@ export default function TripItineraryPage({ tripId }) {
             <StopSection
               key={stop._id}
               stop={stop}
-              activities={data.getActivitiesForStop(stop._id)}
+              activities={activities.filter(a => a.stop === stop._id)}
               isFirst={index === 0}
               isLast={index === stops.length - 1}
               canEdit={canEdit}
-              onMove={(direction) => data.moveStop(stop._id, direction)}
+              onMove={(direction) => handleMoveStop(stop, direction)}
               onEdit={() => setStopModal({ open: true, stop })}
               onRemove={() => setConfirm({ kind: "stop", id: stop._id, name: stop.cityName })}
               onAddActivity={() => setActivityModal({ open: true, stop, activity: null })}
@@ -132,11 +187,8 @@ export default function TripItineraryPage({ tripId }) {
               onRemoveActivity={(activity) =>
                 setConfirm({ kind: "activity", id: activity._id, name: activity.title })
               }
-              onToggleActivity={(activity) => {
-                data.toggleActivityCompleted(activity._id);
-                showToast(activity.isCompleted ? "Marked as planned" : "Marked as done");
-              }}
-              onMoveActivity={(activity, direction) => data.moveActivity(activity._id, direction)}
+              onToggleActivity={(activity) => handleToggleActivity(activity)}
+              onMoveActivity={(activity, direction) => handleMoveActivity(activity, direction)}
             />
           ))}
         </div>
@@ -144,21 +196,23 @@ export default function TripItineraryPage({ tripId }) {
 
       <StopFormModal
         open={stopModal.open}
-        cities={data.cities}
+        cities={cities}
         trip={trip}
         stop={stopModal.stop}
         onSave={handleSaveStop}
         onClose={() => setStopModal({ open: false, stop: null })}
       />
 
-      <ActivityFormModal
-        open={activityModal.open}
-        stop={activityModal.stop}
-        activity={activityModal.activity}
-        catalog={data.catalog}
-        onSave={handleSaveActivity}
-        onClose={() => setActivityModal({ open: false, stop: null, activity: null })}
-      />
+      {activityModal.open && (
+        <ActivityFormModal
+          open={activityModal.open}
+          stop={activityModal.stop}
+          activity={activityModal.activity}
+          catalog={catalog}
+          onSave={handleSaveActivity}
+          onClose={() => setActivityModal({ open: false, stop: null, activity: null })}
+        />
+      )}
 
       <ConfirmDialog
         open={Boolean(confirm)}
@@ -173,6 +227,7 @@ export default function TripItineraryPage({ tripId }) {
         confirmLabel="Remove"
         onConfirm={handleConfirm}
         onCancel={() => setConfirm(null)}
+        loading={deleteStop.isPending || deleteActivity.isPending}
       />
     </>
   );
@@ -243,7 +298,7 @@ function StopSection({
         <div className="border-b border-border bg-surface-muted/50 px-5 py-3 text-sm">
           {stop.accommodation ? (
             <p>
-              <span className="text-muted-foreground">Stay: </span>
+               <span className="font-semibold">Stay: </span>
               {stop.accommodation}
             </p>
           ) : null}
@@ -285,8 +340,7 @@ function StopSection({
 }
 
 function ActivityRow({ activity, isFirst, isLast, onEdit, onRemove, onToggle, onMove, canEdit }) {
-  const data = useAppData();
-  const addedBy = data.getUserById(activity.addedBy);
+  const addedBy = activity.addedBy; // Now populated by mongoose
 
   return (
     <li className="grid grid-cols-[auto_minmax(0,1fr)] gap-4 border-b border-border px-5 py-4 last:border-b-0">
@@ -341,7 +395,7 @@ function ActivityRow({ activity, isFirst, isLast, onEdit, onRemove, onToggle, on
           </Button>
         </div>
 
-        {addedBy ? (
+        {addedBy && addedBy.name ? (
           <p className="mt-1.5 text-xs text-subtle-foreground">Added by {addedBy.name}</p>
         ) : null}
       </div>

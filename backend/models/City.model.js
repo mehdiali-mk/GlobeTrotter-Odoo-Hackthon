@@ -28,8 +28,8 @@ const citySchema = new mongoose.Schema(
     },
     costIndex: {
       type: String,
-      enum: ['$', '$$', '$$$'],
-      default: '$$'
+      enum: ['₹', '₹₹', '₹₹₹'],
+      default: '₹₹'
     },
     popularity: {
       type: Number,

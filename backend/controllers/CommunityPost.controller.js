@@ -106,3 +106,41 @@ export const deletePost = catchAsync(async (req, res, next) => {
     data: null
   });
 });
+
+// ─── TOGGLE LIKE ────────────────────────────────────────────────────────────────
+
+export const toggleLike = catchAsync(async (req, res, next) => {
+  const post = await CommunityPost.findById(req.params.id);
+
+  if (!post) {
+    return next(new AppError('No community post found with that ID', 404));
+  }
+
+  const userId = req.user.id;
+  const index = post.likedBy.indexOf(userId);
+  let isLiked = false;
+
+  if (index === -1) {
+    // User hasn't liked it yet
+    post.likedBy.push(userId);
+    post.likesCount += 1;
+    isLiked = true;
+  } else {
+    // User already liked it, so unlike
+    post.likedBy.splice(index, 1);
+    post.likesCount = Math.max(0, post.likesCount - 1);
+    isLiked = false;
+  }
+
+  await post.save();
+
+  res.status(200).json({
+    status: 'success',
+    message: isLiked ? 'Post liked' : 'Post unliked',
+    data: {
+      likesCount: post.likesCount,
+      isLiked
+    }
+  });
+});
+
