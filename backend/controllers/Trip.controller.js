@@ -3,6 +3,7 @@ import Trip from '../models/Trip.model.js';
 import ItineraryStop from '../models/ItineraryStop.model.js';
 import TripActivity from '../models/TripActivity.model.js';
 import Expense from '../models/Expense.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -28,8 +29,8 @@ export const createTrip = catchAsync(async (req, res, next) => {
 });
 
 export const getAllTrips = catchAsync(async (req, res, next) => {
-  // Build filter — only return trips the user is part of
-  const filter = {
+  // Build base filter — only return trips the user is part of
+  const baseFilter = {
     $or: [
       { creator: req.user.id },
       { 'members.user': req.user.id }
@@ -38,10 +39,16 @@ export const getAllTrips = catchAsync(async (req, res, next) => {
 
   // Optional status filter from query string
   if (req.query.status) {
-    filter.status = req.query.status;
+    baseFilter.status = req.query.status;
   }
 
-  const trips = await Trip.find(filter).sort('-createdAt');
+  const features = new APIFeatures(Trip.find(baseFilter), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const trips = await features.query;
 
   res.status(200).json({
     status: 'success',
@@ -114,13 +121,21 @@ export const getMyTripsByStatus = catchAsync(async (req, res, next) => {
     );
   }
 
-  const trips = await Trip.find({
+  const baseFilter = {
     status,
     $or: [
       { creator: req.user.id },
       { 'members.user': req.user.id }
     ]
-  }).sort('-createdAt');
+  };
+
+  const features = new APIFeatures(Trip.find(baseFilter), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const trips = await features.query;
 
   res.status(200).json({
     status: 'success',

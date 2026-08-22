@@ -1,4 +1,5 @@
 import ActivityCatalog from '../models/ActivityCatalog.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -6,38 +7,41 @@ import catchAsync from '../utils/catchAsync.util.js';
 // Supports filters: category, cost (range), duration, city, cityName, title
 
 export const searchActivities = catchAsync(async (req, res, next) => {
-  const filter = {};
+  const baseFilter = {};
 
   if (req.query.category) {
-    filter.category = req.query.category;
+    baseFilter.category = req.query.category;
   }
   if (req.query.city) {
-    filter.city = req.query.city;
+    baseFilter.city = req.query.city;
   }
   if (req.query.cityName) {
-    filter.cityName = new RegExp(req.query.cityName, 'i');
+    baseFilter.cityName = new RegExp(req.query.cityName, 'i');
   }
   if (req.query.title) {
-    filter.title = new RegExp(req.query.title, 'i');
+    baseFilter.title = new RegExp(req.query.title, 'i');
   }
   if (req.query.duration) {
-    filter.duration = req.query.duration;
+    baseFilter.duration = req.query.duration;
   }
 
   // Cost range filters: ?cost[gte]=100&cost[lte]=500
   if (req.query.cost) {
     if (typeof req.query.cost === 'object') {
-      filter.cost = {};
-      if (req.query.cost.gte) filter.cost.$gte = Number(req.query.cost.gte);
-      if (req.query.cost.lte) filter.cost.$lte = Number(req.query.cost.lte);
+      baseFilter.cost = {};
+      if (req.query.cost.gte) baseFilter.cost.$gte = Number(req.query.cost.gte);
+      if (req.query.cost.lte) baseFilter.cost.$lte = Number(req.query.cost.lte);
     } else {
-      filter.cost = Number(req.query.cost);
+      baseFilter.cost = Number(req.query.cost);
     }
   }
 
-  const sortBy = req.query.sort || '-rating';
+  const features = new APIFeatures(ActivityCatalog.find(baseFilter), req.query)
+    .sort()
+    .limitFields()
+    .pagination();
 
-  const activities = await ActivityCatalog.find(filter).sort(sortBy);
+  const activities = await features.query;
 
   res.status(200).json({
     status: 'success',

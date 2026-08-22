@@ -1,4 +1,5 @@
 import TripActivity from '../models/TripActivity.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -26,12 +27,16 @@ export const createActivity = catchAsync(async (req, res, next) => {
 // ─── GET ALL ACTIVITIES ─────────────────────────────────────────────────────────
 
 export const getAllActivities = catchAsync(async (req, res, next) => {
-  const filter = {};
-  if (req.params.tripId) filter.trip = req.params.tripId;
+  const baseFilter = {};
+  if (req.params.tripId) baseFilter.trip = req.params.tripId;
 
-  const activities = await TripActivity.find(filter).sort(
-    'dayNumber startTime'
-  );
+  const features = new APIFeatures(TripActivity.find(baseFilter), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const activities = await features.query;
 
   res.status(200).json({
     status: 'success',

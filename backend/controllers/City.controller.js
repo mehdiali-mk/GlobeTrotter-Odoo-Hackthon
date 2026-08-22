@@ -1,4 +1,5 @@
 import City from '../models/City.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -6,40 +7,43 @@ import catchAsync from '../utils/catchAsync.util.js';
 // Supports filters: country, costIndex, popularity, region, name, isTopAttraction
 
 export const searchCities = catchAsync(async (req, res, next) => {
-  const filter = {};
+  const baseFilter = {};
 
   if (req.query.country) {
-    filter.country = new RegExp(req.query.country, 'i');
+    baseFilter.country = new RegExp(req.query.country, 'i');
   }
   if (req.query.costIndex) {
-    filter.costIndex = req.query.costIndex;
+    baseFilter.costIndex = req.query.costIndex;
   }
   if (req.query.region) {
-    filter.region = new RegExp(req.query.region, 'i');
+    baseFilter.region = new RegExp(req.query.region, 'i');
   }
   if (req.query.name) {
-    filter.name = new RegExp(req.query.name, 'i');
+    baseFilter.name = new RegExp(req.query.name, 'i');
   }
   if (req.query.isTopAttraction) {
-    filter.isTopAttraction = req.query.isTopAttraction === 'true';
+    baseFilter.isTopAttraction = req.query.isTopAttraction === 'true';
   }
 
   // Popularity range filters: ?popularity[gte]=4&popularity[lte]=5
   if (req.query.popularity) {
     if (typeof req.query.popularity === 'object') {
-      filter.popularity = {};
+      baseFilter.popularity = {};
       if (req.query.popularity.gte)
-        filter.popularity.$gte = Number(req.query.popularity.gte);
+        baseFilter.popularity.$gte = Number(req.query.popularity.gte);
       if (req.query.popularity.lte)
-        filter.popularity.$lte = Number(req.query.popularity.lte);
+        baseFilter.popularity.$lte = Number(req.query.popularity.lte);
     } else {
-      filter.popularity = Number(req.query.popularity);
+      baseFilter.popularity = Number(req.query.popularity);
     }
   }
 
-  const sortBy = req.query.sort || '-popularity';
+  const features = new APIFeatures(City.find(baseFilter), req.query)
+    .sort()
+    .limitFields()
+    .pagination();
 
-  const cities = await City.find(filter).sort(sortBy);
+  const cities = await features.query;
 
   res.status(200).json({
     status: 'success',

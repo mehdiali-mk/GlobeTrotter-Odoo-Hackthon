@@ -1,4 +1,5 @@
 import CommunityPost from '../models/CommunityPost.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -19,7 +20,13 @@ export const createPost = catchAsync(async (req, res, next) => {
 // ─── GET ALL POSTS ──────────────────────────────────────────────────────────────
 
 export const getAllPosts = catchAsync(async (req, res, next) => {
-  const posts = await CommunityPost.find().sort('-createdAt');
+  const features = new APIFeatures(CommunityPost.find(), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const posts = await features.query;
 
   res.status(200).json({
     status: 'success',

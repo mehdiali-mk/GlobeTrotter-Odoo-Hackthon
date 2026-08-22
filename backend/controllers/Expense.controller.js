@@ -1,4 +1,5 @@
 import Expense from '../models/Expense.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -27,10 +28,16 @@ export const createExpense = catchAsync(async (req, res, next) => {
 // ─── GET ALL EXPENSES ───────────────────────────────────────────────────────────
 
 export const getAllExpenses = catchAsync(async (req, res, next) => {
-  const filter = {};
-  if (req.params.tripId) filter.trip = req.params.tripId;
+  const baseFilter = {};
+  if (req.params.tripId) baseFilter.trip = req.params.tripId;
 
-  const expenses = await Expense.find(filter).sort('-date');
+  const features = new APIFeatures(Expense.find(baseFilter), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const expenses = await features.query;
 
   res.status(200).json({
     status: 'success',

@@ -1,4 +1,5 @@
 import ItineraryStop from '../models/ItineraryStop.model.js';
+import APIFeatures from '../utils/apiFeature.util.js';
 import AppError from '../utils/appError.util.js';
 import catchAsync from '../utils/catchAsync.util.js';
 
@@ -25,10 +26,16 @@ export const createStop = catchAsync(async (req, res, next) => {
 
 export const getAllStops = catchAsync(async (req, res, next) => {
   // Scoped to the trip via nested route param
-  const filter = {};
-  if (req.params.tripId) filter.trip = req.params.tripId;
+  const baseFilter = {};
+  if (req.params.tripId) baseFilter.trip = req.params.tripId;
 
-  const stops = await ItineraryStop.find(filter).sort('stopOrder');
+  const features = new APIFeatures(ItineraryStop.find(baseFilter), req.query)
+    .filter()
+    .sort()
+    .limitFields()
+    .pagination();
+
+  const stops = await features.query;
 
   res.status(200).json({
     status: 'success',
