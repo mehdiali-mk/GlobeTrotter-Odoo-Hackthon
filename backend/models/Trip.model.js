@@ -79,11 +79,40 @@ const tripSchema = new mongoose.Schema(
   }
 );
 
-// Middleware to generate slug from title
-tripSchema.pre('save', function(next) {
+// ─── INDEXES ────────────────────────────────────────────────────────────────────
+tripSchema.index({ slug: 1 });
+tripSchema.index({ status: 1, isPublic: 1 });
+
+// ─── VIRTUAL PROPERTIES ────────────────────────────────────────────────────────
+tripSchema.virtual('durationDays').get(function () {
+  if (this.startDate && this.endDate) {
+    const diffMs = this.endDate.getTime() - this.startDate.getTime();
+    return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  }
+  return 0;
+});
+
+// ─── DOCUMENT MIDDLEWARE ────────────────────────────────────────────────────────
+
+// Generate slug from title before saving
+tripSchema.pre('save', function (next) {
   if (this.isModified('title')) {
     this.slug = slugify(this.title, { lower: true });
   }
+  next();
+});
+
+// ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
+
+// Auto-populate creator and members.user on any find query
+tripSchema.pre(/^find/, function (next) {
+  this.populate({
+    path: 'creator',
+    select: 'name photo'
+  }).populate({
+    path: 'members.user',
+    select: 'name photo'
+  });
   next();
 });
 
