@@ -1,14 +1,14 @@
-const { promisify } = require('util');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import { promisify } from 'util';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── PROTECT ────────────────────────────────────────────────────────────────────
 // Verifies JWT from Authorization header and attaches the authenticated user
 // to req.user for all downstream middleware and controllers.
 
-exports.protect = catchAsync(async (req, res, next) => {
+export const protect = catchAsync(async (req, res, next) => {
   // 1) Get token from Authorization header
   let token;
   if (
@@ -57,7 +57,7 @@ exports.protect = catchAsync(async (req, res, next) => {
 // Role-based authorization. Accepts a list of allowed roles and denies access
 // if the authenticated user's role is not included.
 
-exports.restrictTo = (...roles) => {
+export const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return next(

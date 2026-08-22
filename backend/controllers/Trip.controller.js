@@ -1,16 +1,16 @@
-const crypto = require('crypto');
-const Trip = require('../models/Trip.model.js');
-const ItineraryStop = require('../models/ItineraryStop.model.js');
-const TripActivity = require('../models/TripActivity.model.js');
-const Expense = require('../models/Expense.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import crypto from 'crypto';
+import Trip from '../models/Trip.model.js';
+import ItineraryStop from '../models/ItineraryStop.model.js';
+import TripActivity from '../models/TripActivity.model.js';
+import Expense from '../models/Expense.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CRUD OPERATIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-exports.createTrip = catchAsync(async (req, res, next) => {
+export const createTrip = catchAsync(async (req, res, next) => {
   // Assign the logged-in user as the trip creator
   req.body.creator = req.user.id;
 
@@ -27,7 +27,7 @@ exports.createTrip = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getAllTrips = catchAsync(async (req, res, next) => {
+export const getAllTrips = catchAsync(async (req, res, next) => {
   // Build filter — only return trips the user is part of
   const filter = {
     $or: [
@@ -50,7 +50,7 @@ exports.getAllTrips = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.getTrip = catchAsync(async (req, res, next) => {
+export const getTrip = catchAsync(async (req, res, next) => {
   const trip = await Trip.findById(req.params.id);
 
   if (!trip) {
@@ -63,7 +63,7 @@ exports.getTrip = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.updateTrip = catchAsync(async (req, res, next) => {
+export const updateTrip = catchAsync(async (req, res, next) => {
   const trip = await Trip.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
@@ -79,7 +79,7 @@ exports.updateTrip = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.deleteTrip = catchAsync(async (req, res, next) => {
+export const deleteTrip = catchAsync(async (req, res, next) => {
   const trip = await Trip.findByIdAndDelete(req.params.id);
 
   if (!trip) {
@@ -101,7 +101,7 @@ exports.deleteTrip = catchAsync(async (req, res, next) => {
 // TRIP LISTING BY STATUS (Requirement #4)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-exports.getMyTripsByStatus = catchAsync(async (req, res, next) => {
+export const getMyTripsByStatus = catchAsync(async (req, res, next) => {
   const { status } = req.params;
 
   const validStatuses = ['unplanned', 'upcoming', 'ongoing', 'completed'];
@@ -133,7 +133,7 @@ exports.getMyTripsByStatus = catchAsync(async (req, res, next) => {
 // ITINERARY VIEW — Heavily Populated (Requirements #6 & #10)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-exports.getItineraryView = catchAsync(async (req, res, next) => {
+export const getItineraryView = catchAsync(async (req, res, next) => {
   const trip = await Trip.findById(req.params.tripId);
 
   if (!trip) {
@@ -162,7 +162,7 @@ exports.getItineraryView = catchAsync(async (req, res, next) => {
 // PUBLIC SHARING (Requirement #11)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-exports.getPublicTrip = catchAsync(async (req, res, next) => {
+export const getPublicTrip = catchAsync(async (req, res, next) => {
   const trip = await Trip.findOne({
     slug: req.params.slug,
     isPublic: true
@@ -183,7 +183,7 @@ exports.getPublicTrip = catchAsync(async (req, res, next) => {
   });
 });
 
-exports.cloneTrip = catchAsync(async (req, res, next) => {
+export const cloneTrip = catchAsync(async (req, res, next) => {
   // 1) Find the original public trip
   const originalTrip = await Trip.findOne({
     slug: req.params.slug,

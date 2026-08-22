@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const slugify = require('slugify');
+import mongoose from 'mongoose';
+import slugify from 'slugify';
 
 const activityCatalogSchema = new mongoose.Schema(
   {
@@ -82,4 +82,4 @@ const ActivityCatalog = mongoose.model(
   activityCatalogSchema
 );
 
-module.exports = ActivityCatalog;
+export default ActivityCatalog;

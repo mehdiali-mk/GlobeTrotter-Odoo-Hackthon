@@ -1,6 +1,6 @@
-const Trip = require('../models/Trip.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import Trip from '../models/Trip.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── CHECK TRIP MEMBERSHIP ──────────────────────────────────────────────────────
 // Custom middleware that finds a Trip by req.params.tripId, checks if
@@ -11,7 +11,7 @@ const catchAsync = require('../utils/catchAsync.util.js');
 //   checkTripMembership('editor')         → only creators and editors
 //   checkTripMembership('editor','viewer') → creators, editors, and viewers
 
-exports.checkTripMembership = (...allowedRoles) => {
+export const checkTripMembership = (...allowedRoles) => {
   return catchAsync(async (req, res, next) => {
     const trip = await Trip.findById(req.params.tripId);
 

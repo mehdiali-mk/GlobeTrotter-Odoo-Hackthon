@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const slugify = require('slugify');
+import mongoose from 'mongoose';
+import slugify from 'slugify';
 
 const tripSchema = new mongoose.Schema(
   {
@@ -118,4 +118,4 @@ tripSchema.pre(/^find/, function (next) {
 
 const Trip = mongoose.model('Trip', tripSchema);
 
-module.exports = Trip;
+export default Trip;

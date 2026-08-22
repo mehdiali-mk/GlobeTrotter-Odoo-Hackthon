@@ -1,18 +1,18 @@
-const ItineraryStop = require('../models/ItineraryStop.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import ItineraryStop from '../models/ItineraryStop.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── NESTED ROUTE HELPER ────────────────────────────────────────────────────────
 // If tripId is in URL params (from nested route) but not in body, set it.
 
-exports.setTripId = (req, res, next) => {
+export const setTripId = (req, res, next) => {
   if (!req.body.trip) req.body.trip = req.params.tripId;
   next();
 };
 
 // ─── CREATE STOP ────────────────────────────────────────────────────────────────
 
-exports.createStop = catchAsync(async (req, res, next) => {
+export const createStop = catchAsync(async (req, res, next) => {
   const stop = await ItineraryStop.create(req.body);
 
   res.status(201).json({
@@ -23,7 +23,7 @@ exports.createStop = catchAsync(async (req, res, next) => {
 
 // ─── GET ALL STOPS ──────────────────────────────────────────────────────────────
 
-exports.getAllStops = catchAsync(async (req, res, next) => {
+export const getAllStops = catchAsync(async (req, res, next) => {
   // Scoped to the trip via nested route param
   const filter = {};
   if (req.params.tripId) filter.trip = req.params.tripId;
@@ -39,7 +39,7 @@ exports.getAllStops = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE STOP ────────────────────────────────────────────────────────────
 
-exports.getStop = catchAsync(async (req, res, next) => {
+export const getStop = catchAsync(async (req, res, next) => {
   const stop = await ItineraryStop.findById(req.params.id);
 
   if (!stop) {
@@ -54,7 +54,7 @@ exports.getStop = catchAsync(async (req, res, next) => {
 
 // ─── UPDATE STOP ────────────────────────────────────────────────────────────────
 
-exports.updateStop = catchAsync(async (req, res, next) => {
+export const updateStop = catchAsync(async (req, res, next) => {
   const stop = await ItineraryStop.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
@@ -72,7 +72,7 @@ exports.updateStop = catchAsync(async (req, res, next) => {
 
 // ─── DELETE STOP ────────────────────────────────────────────────────────────────
 
-exports.deleteStop = catchAsync(async (req, res, next) => {
+export const deleteStop = catchAsync(async (req, res, next) => {
   const stop = await ItineraryStop.findByIdAndDelete(req.params.id);
 
   if (!stop) {

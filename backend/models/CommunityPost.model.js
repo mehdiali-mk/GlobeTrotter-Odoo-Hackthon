@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const communityPostSchema = new mongoose.Schema(
   {
@@ -51,4 +51,4 @@ communityPostSchema.pre(/^find/, function (next) {
 
 const CommunityPost = mongoose.model('CommunityPost', communityPostSchema);
 
-module.exports = CommunityPost;
+export default CommunityPost;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const itineraryStopSchema = new mongoose.Schema(
   {
@@ -57,4 +57,4 @@ itineraryStopSchema.pre(/^find/, function (next) {
 
 const ItineraryStop = mongoose.model('ItineraryStop', itineraryStopSchema);
 
-module.exports = ItineraryStop;
+export default ItineraryStop;

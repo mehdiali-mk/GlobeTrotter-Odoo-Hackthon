@@ -1,8 +1,8 @@
-const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ const createSendToken = (user, statusCode, res) => {
 
 // ─── SIGNUP ─────────────────────────────────────────────────────────────────────
 
-exports.signup = catchAsync(async (req, res, next) => {
+export const signup = catchAsync(async (req, res, next) => {
   // Only allow specific fields to prevent role escalation
   const newUser = await User.create({
     name: req.body.name,
@@ -46,7 +46,7 @@ exports.signup = catchAsync(async (req, res, next) => {
 
 // ─── LOGIN ──────────────────────────────────────────────────────────────────────
 
-exports.login = catchAsync(async (req, res, next) => {
+export const login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
 
   // 1) Check if email and password exist in the request body
@@ -67,7 +67,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
 // ─── FORGOT PASSWORD ────────────────────────────────────────────────────────────
 
-exports.forgotPassword = catchAsync(async (req, res, next) => {
+export const forgotPassword = catchAsync(async (req, res, next) => {
   // 1) Get user based on POSTed email
   const user = await User.findOne({ email: req.body.email });
   if (!user) {
@@ -108,7 +108,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
 // ─── RESET PASSWORD ─────────────────────────────────────────────────────────────
 
-exports.resetPassword = catchAsync(async (req, res, next) => {
+export const resetPassword = catchAsync(async (req, res, next) => {
   // 1) Get user based on the token
   const hashedToken = crypto
     .createHash('sha256')

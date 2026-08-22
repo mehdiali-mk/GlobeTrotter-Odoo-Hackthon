@@ -1,6 +1,6 @@
-const express = require('express');
-const activityCatalogController = require('../controllers/ActivityCatalog.controller.js');
-const { protect, restrictTo } = require('../middlewares/auth.middleware.js');
+import express from 'express';
+import * as activityCatalogController from '../controllers/ActivityCatalog.controller.js';
+import { protect, restrictTo } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.post('/', activityCatalogController.createActivity);
 router.patch('/:id', activityCatalogController.updateActivity);
 router.delete('/:id', activityCatalogController.deleteActivity);
 
-module.exports = router;
+export default router;

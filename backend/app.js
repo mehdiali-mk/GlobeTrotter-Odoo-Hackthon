@@ -1,18 +1,18 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const morgan = require('morgan');
-const AppError = require('./utils/appError.util.js');
-const { globalErrorHandler } = require('./controllers/Errors.controller.js');
+import express from 'express';
+import dotenv from 'dotenv';
+import morgan from 'morgan';
+import AppError from './utils/appError.util.js';
+import { globalErrorHandler } from './controllers/Errors.controller.js';
 
 // ─── ROUTE IMPORTS ──────────────────────────────────────────────────────────────
-const authRouter = require('./routes/Auth.routes.js');
-const dashboardRouter = require('./routes/Dashboard.routes.js');
-const tripRouter = require('./routes/Trip.routes.js');
-const cityRouter = require('./routes/City.routes.js');
-const activityCatalogRouter = require('./routes/ActivityCatalog.routes.js');
-const userRouter = require('./routes/User.routes.js');
-const communityPostRouter = require('./routes/CommunityPost.routes.js');
-const adminRouter = require('./routes/Admin.routes.js');
+import authRouter from './routes/Auth.routes.js';
+import dashboardRouter from './routes/Dashboard.routes.js';
+import tripRouter from './routes/Trip.routes.js';
+import cityRouter from './routes/City.routes.js';
+import activityCatalogRouter from './routes/ActivityCatalog.routes.js';
+import userRouter from './routes/User.routes.js';
+import communityPostRouter from './routes/CommunityPost.routes.js';
+import adminRouter from './routes/Admin.routes.js';
 
 dotenv.config({ path: './.env' });
 
@@ -44,4 +44,4 @@ app.all('/{*path}', (request, response, next) => {
 // ─── GLOBAL ERROR HANDLER ───────────────────────────────────────────────────────
 app.use(globalErrorHandler);
 
-module.exports = app;
+export default app;

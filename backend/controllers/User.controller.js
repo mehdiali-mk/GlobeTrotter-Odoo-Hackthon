@@ -1,6 +1,6 @@
-const User = require('../models/User.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import User from '../models/User.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── HELPER ─────────────────────────────────────────────────────────────────────
 // Filters an object to only include allowed fields (prevents mass-assignment).
@@ -15,7 +15,7 @@ const filterObj = (obj, ...allowedFields) => {
 
 // ─── GET ME ─────────────────────────────────────────────────────────────────────
 
-exports.getMe = catchAsync(async (req, res, next) => {
+export const getMe = catchAsync(async (req, res, next) => {
   const user = await User.findById(req.user.id);
 
   res.status(200).json({
@@ -28,7 +28,7 @@ exports.getMe = catchAsync(async (req, res, next) => {
 // Updates profile details and saved destinations.
 // Rejects password updates — those go through the Auth controller.
 
-exports.updateMe = catchAsync(async (req, res, next) => {
+export const updateMe = catchAsync(async (req, res, next) => {
   // 1) Block password updates on this route
   if (req.body.password || req.body.passwordConfirm) {
     return next(
@@ -68,7 +68,7 @@ exports.updateMe = catchAsync(async (req, res, next) => {
 // Soft-deletes the account by setting active to false.
 // The User model's pre(/^find/) middleware automatically filters these out.
 
-exports.deleteMe = catchAsync(async (req, res, next) => {
+export const deleteMe = catchAsync(async (req, res, next) => {
   await User.findByIdAndUpdate(req.user.id, { active: false });
 
   res.status(204).json({

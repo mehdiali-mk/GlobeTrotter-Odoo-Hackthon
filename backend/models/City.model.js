@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-const slugify = require('slugify');
+import mongoose from 'mongoose';
+import slugify from 'slugify';
 
 const citySchema = new mongoose.Schema(
   {
@@ -65,4 +65,4 @@ citySchema.pre('save', function (next) {
 
 const City = mongoose.model('City', citySchema);
 
-module.exports = City;
+export default City;

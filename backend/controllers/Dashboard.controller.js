@@ -1,12 +1,12 @@
-const Trip = require('../models/Trip.model.js');
-const City = require('../models/City.model.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import Trip from '../models/Trip.model.js';
+import City from '../models/City.model.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── DASHBOARD ──────────────────────────────────────────────────────────────────
 // Aggregates the logged-in user's recent trips and fetches top-rated
 // city recommendations for the dashboard homepage.
 
-exports.getDashboard = catchAsync(async (req, res, next) => {
+export const getDashboard = catchAsync(async (req, res, next) => {
   // 1) Fetch the user's recent trips (as creator OR member)
   const recentTrips = await Trip.find({
     $or: [

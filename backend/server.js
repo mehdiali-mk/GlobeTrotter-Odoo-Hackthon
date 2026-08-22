@@ -1,7 +1,6 @@
-const dotenv = require('dotenv');
-const connectDB = require('./configs/connectDB.js');
-const { configureMongoDns } = require('./configs/connectDB.js');
-const app = require('./app.js');
+import dotenv from 'dotenv';
+import connectDB, { configureMongoDns } from './configs/connectDB.js';
+import app from './app.js';
 
 dotenv.config({ path: './.env' });
 configureMongoDns();

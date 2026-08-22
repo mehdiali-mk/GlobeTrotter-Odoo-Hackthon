@@ -1,11 +1,11 @@
-const ActivityCatalog = require('../models/ActivityCatalog.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import ActivityCatalog from '../models/ActivityCatalog.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── SEARCH ACTIVITIES (PUBLIC) ─────────────────────────────────────────────────
 // Supports filters: category, cost (range), duration, city, cityName, title
 
-exports.searchActivities = catchAsync(async (req, res, next) => {
+export const searchActivities = catchAsync(async (req, res, next) => {
   const filter = {};
 
   if (req.query.category) {
@@ -48,7 +48,7 @@ exports.searchActivities = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE ACTIVITY ────────────────────────────────────────────────────────
 
-exports.getActivity = catchAsync(async (req, res, next) => {
+export const getActivity = catchAsync(async (req, res, next) => {
   const activity = await ActivityCatalog.findById(req.params.id);
 
   if (!activity) {
@@ -63,7 +63,7 @@ exports.getActivity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: CREATE ACTIVITY ─────────────────────────────────────────────────────
 
-exports.createActivity = catchAsync(async (req, res, next) => {
+export const createActivity = catchAsync(async (req, res, next) => {
   const activity = await ActivityCatalog.create(req.body);
 
   res.status(201).json({
@@ -74,7 +74,7 @@ exports.createActivity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: UPDATE ACTIVITY ─────────────────────────────────────────────────────
 
-exports.updateActivity = catchAsync(async (req, res, next) => {
+export const updateActivity = catchAsync(async (req, res, next) => {
   const activity = await ActivityCatalog.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -93,7 +93,7 @@ exports.updateActivity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: DELETE ACTIVITY ─────────────────────────────────────────────────────
 
-exports.deleteActivity = catchAsync(async (req, res, next) => {
+export const deleteActivity = catchAsync(async (req, res, next) => {
   const activity = await ActivityCatalog.findByIdAndDelete(req.params.id);
 
   if (!activity) {

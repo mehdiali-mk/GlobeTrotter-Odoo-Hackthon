@@ -1,12 +1,12 @@
-const Trip = require('../models/Trip.model.js');
-const User = require('../models/User.model.js');
-const ItineraryStop = require('../models/ItineraryStop.model.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import Trip from '../models/Trip.model.js';
+import User from '../models/User.model.js';
+import ItineraryStop from '../models/ItineraryStop.model.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── ANALYTICS ──────────────────────────────────────────────────────────────────
 // Admin-only endpoint that aggregates platform-wide statistics.
 
-exports.getAnalytics = catchAsync(async (req, res, next) => {
+export const getAnalytics = catchAsync(async (req, res, next) => {
   // Run all aggregations in parallel
   const [
     totalTrips,

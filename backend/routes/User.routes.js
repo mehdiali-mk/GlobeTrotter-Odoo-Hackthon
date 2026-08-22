@@ -1,6 +1,6 @@
-const express = require('express');
-const userController = require('../controllers/User.controller.js');
-const { protect } = require('../middlewares/auth.middleware.js');
+import express from 'express';
+import * as userController from '../controllers/User.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -11,4 +11,4 @@ router.get('/me', userController.getMe);
 router.patch('/updateMe', userController.updateMe);
 router.delete('/deleteMe', userController.deleteMe);
 
-module.exports = router;
+export default router;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const tripActivitySchema = new mongoose.Schema(
   {
@@ -74,4 +74,4 @@ tripActivitySchema.pre(/^find/, function (next) {
 
 const TripActivity = mongoose.model('TripActivity', tripActivitySchema);
 
-module.exports = TripActivity;
+export default TripActivity;

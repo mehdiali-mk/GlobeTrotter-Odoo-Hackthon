@@ -1,11 +1,11 @@
-const City = require('../models/City.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import City from '../models/City.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── SEARCH CITIES (PUBLIC) ─────────────────────────────────────────────────────
 // Supports filters: country, costIndex, popularity, region, name, isTopAttraction
 
-exports.searchCities = catchAsync(async (req, res, next) => {
+export const searchCities = catchAsync(async (req, res, next) => {
   const filter = {};
 
   if (req.query.country) {
@@ -50,7 +50,7 @@ exports.searchCities = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE CITY ────────────────────────────────────────────────────────────
 
-exports.getCity = catchAsync(async (req, res, next) => {
+export const getCity = catchAsync(async (req, res, next) => {
   const city = await City.findById(req.params.id);
 
   if (!city) {
@@ -65,7 +65,7 @@ exports.getCity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: CREATE CITY ─────────────────────────────────────────────────────────
 
-exports.createCity = catchAsync(async (req, res, next) => {
+export const createCity = catchAsync(async (req, res, next) => {
   const city = await City.create(req.body);
 
   res.status(201).json({
@@ -76,7 +76,7 @@ exports.createCity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: UPDATE CITY ─────────────────────────────────────────────────────────
 
-exports.updateCity = catchAsync(async (req, res, next) => {
+export const updateCity = catchAsync(async (req, res, next) => {
   const city = await City.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
@@ -94,7 +94,7 @@ exports.updateCity = catchAsync(async (req, res, next) => {
 
 // ─── ADMIN: DELETE CITY ─────────────────────────────────────────────────────────
 
-exports.deleteCity = catchAsync(async (req, res, next) => {
+export const deleteCity = catchAsync(async (req, res, next) => {
   const city = await City.findByIdAndDelete(req.params.id);
 
   if (!city) {

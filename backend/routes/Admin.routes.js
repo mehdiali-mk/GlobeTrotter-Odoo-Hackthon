@@ -1,6 +1,6 @@
-const express = require('express');
-const adminController = require('../controllers/Admin.controller.js');
-const { protect, restrictTo } = require('../middlewares/auth.middleware.js');
+import express from 'express';
+import * as adminController from '../controllers/Admin.controller.js';
+import { protect, restrictTo } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -9,4 +9,4 @@ router.use(protect, restrictTo('admin'));
 
 router.get('/analytics', adminController.getAnalytics);
 
-module.exports = router;
+export default router;

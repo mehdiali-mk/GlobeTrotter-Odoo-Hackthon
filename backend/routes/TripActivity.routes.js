@@ -1,9 +1,7 @@
-const express = require('express');
-const tripActivityController = require('../controllers/TripActivity.controller.js');
-const { protect } = require('../middlewares/auth.middleware.js');
-const {
-  checkTripMembership
-} = require('../middlewares/tripAuth.middleware.js');
+import express from 'express';
+import * as tripActivityController from '../controllers/TripActivity.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
+import { checkTripMembership } from '../middlewares/tripAuth.middleware.js';
 
 // mergeParams: true allows access to :tripId from the parent Trip router
 const router = express.Router({ mergeParams: true });
@@ -37,4 +35,4 @@ router
     tripActivityController.deleteActivity
   );
 
-module.exports = router;
+export default router;

@@ -1,10 +1,10 @@
-const CommunityPost = require('../models/CommunityPost.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import CommunityPost from '../models/CommunityPost.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── CREATE POST ────────────────────────────────────────────────────────────────
 
-exports.createPost = catchAsync(async (req, res, next) => {
+export const createPost = catchAsync(async (req, res, next) => {
   // Set the user from the authenticated request
   req.body.user = req.user.id;
 
@@ -18,7 +18,7 @@ exports.createPost = catchAsync(async (req, res, next) => {
 
 // ─── GET ALL POSTS ──────────────────────────────────────────────────────────────
 
-exports.getAllPosts = catchAsync(async (req, res, next) => {
+export const getAllPosts = catchAsync(async (req, res, next) => {
   const posts = await CommunityPost.find().sort('-createdAt');
 
   res.status(200).json({
@@ -30,7 +30,7 @@ exports.getAllPosts = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE POST ────────────────────────────────────────────────────────────
 
-exports.getPost = catchAsync(async (req, res, next) => {
+export const getPost = catchAsync(async (req, res, next) => {
   const post = await CommunityPost.findById(req.params.id);
 
   if (!post) {
@@ -46,7 +46,7 @@ exports.getPost = catchAsync(async (req, res, next) => {
 // ─── UPDATE POST ────────────────────────────────────────────────────────────────
 // Only the original author can update their post.
 
-exports.updatePost = catchAsync(async (req, res, next) => {
+export const updatePost = catchAsync(async (req, res, next) => {
   const post = await CommunityPost.findById(req.params.id);
 
   if (!post) {
@@ -77,7 +77,7 @@ exports.updatePost = catchAsync(async (req, res, next) => {
 // ─── DELETE POST ────────────────────────────────────────────────────────────────
 // Only the original author or an admin can delete a post.
 
-exports.deletePost = catchAsync(async (req, res, next) => {
+export const deletePost = catchAsync(async (req, res, next) => {
   const post = await CommunityPost.findById(req.params.id);
 
   if (!post) {

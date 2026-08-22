@@ -1,11 +1,11 @@
-const Expense = require('../models/Expense.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import Expense from '../models/Expense.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── NESTED ROUTE HELPER ────────────────────────────────────────────────────────
 // Sets trip and paidBy from the nested route param and authenticated user.
 
-exports.setTripUserIds = (req, res, next) => {
+export const setTripUserIds = (req, res, next) => {
   if (!req.body.trip) req.body.trip = req.params.tripId;
   if (!req.body.paidBy) req.body.paidBy = req.user.id;
   next();
@@ -15,7 +15,7 @@ exports.setTripUserIds = (req, res, next) => {
 // NOTE: The Expense model's post('save') hook automatically calls
 // calcTotalTripExpenses to update the Trip's totalBudget.
 
-exports.createExpense = catchAsync(async (req, res, next) => {
+export const createExpense = catchAsync(async (req, res, next) => {
   const expense = await Expense.create(req.body);
 
   res.status(201).json({
@@ -26,7 +26,7 @@ exports.createExpense = catchAsync(async (req, res, next) => {
 
 // ─── GET ALL EXPENSES ───────────────────────────────────────────────────────────
 
-exports.getAllExpenses = catchAsync(async (req, res, next) => {
+export const getAllExpenses = catchAsync(async (req, res, next) => {
   const filter = {};
   if (req.params.tripId) filter.trip = req.params.tripId;
 
@@ -41,7 +41,7 @@ exports.getAllExpenses = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE EXPENSE ─────────────────────────────────────────────────────────
 
-exports.getExpense = catchAsync(async (req, res, next) => {
+export const getExpense = catchAsync(async (req, res, next) => {
   const expense = await Expense.findById(req.params.id);
 
   if (!expense) {
@@ -58,7 +58,7 @@ exports.getExpense = catchAsync(async (req, res, next) => {
 // NOTE: The Expense model's post('findOneAnd') hook automatically
 // recalculates the Trip's totalBudget.
 
-exports.updateExpense = catchAsync(async (req, res, next) => {
+export const updateExpense = catchAsync(async (req, res, next) => {
   const expense = await Expense.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
@@ -78,7 +78,7 @@ exports.updateExpense = catchAsync(async (req, res, next) => {
 // NOTE: The Expense model's post('findOneAnd') hook automatically
 // recalculates the Trip's totalBudget.
 
-exports.deleteExpense = catchAsync(async (req, res, next) => {
+export const deleteExpense = catchAsync(async (req, res, next) => {
   const expense = await Expense.findByIdAndDelete(req.params.id);
 
   if (!expense) {

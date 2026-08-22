@@ -1,14 +1,12 @@
-const express = require('express');
-const tripController = require('../controllers/Trip.controller.js');
-const { protect } = require('../middlewares/auth.middleware.js');
-const {
-  checkTripMembership
-} = require('../middlewares/tripAuth.middleware.js');
+import express from 'express';
+import * as tripController from '../controllers/Trip.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
+import { checkTripMembership } from '../middlewares/tripAuth.middleware.js';
 
 // ─── IMPORT NESTED ROUTERS ─────────────────────────────────────────────────────
-const itineraryStopRouter = require('./ItineraryStop.routes.js');
-const tripActivityRouter = require('./TripActivity.routes.js');
-const expenseRouter = require('./Expense.routes.js');
+import itineraryStopRouter from './ItineraryStop.routes.js';
+import tripActivityRouter from './TripActivity.routes.js';
+import expenseRouter from './Expense.routes.js';
 
 const router = express.Router();
 
@@ -49,4 +47,4 @@ router
   .patch(tripController.updateTrip)
   .delete(tripController.deleteTrip);
 
-module.exports = router;
+export default router;

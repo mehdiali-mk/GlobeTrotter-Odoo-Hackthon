@@ -1,6 +1,6 @@
-const express = require('express');
-const cityController = require('../controllers/City.controller.js');
-const { protect, restrictTo } = require('../middlewares/auth.middleware.js');
+import express from 'express';
+import * as cityController from '../controllers/City.controller.js';
+import { protect, restrictTo } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -16,4 +16,4 @@ router.post('/', cityController.createCity);
 router.patch('/:id', cityController.updateCity);
 router.delete('/:id', cityController.deleteCity);
 
-module.exports = router;
+export default router;

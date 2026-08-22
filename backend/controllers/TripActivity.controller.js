@@ -1,17 +1,17 @@
-const TripActivity = require('../models/TripActivity.model.js');
-const AppError = require('../utils/appError.util.js');
-const catchAsync = require('../utils/catchAsync.util.js');
+import TripActivity from '../models/TripActivity.model.js';
+import AppError from '../utils/appError.util.js';
+import catchAsync from '../utils/catchAsync.util.js';
 
 // ─── NESTED ROUTE HELPER ────────────────────────────────────────────────────────
 
-exports.setTripId = (req, res, next) => {
+export const setTripId = (req, res, next) => {
   if (!req.body.trip) req.body.trip = req.params.tripId;
   next();
 };
 
 // ─── CREATE ACTIVITY ────────────────────────────────────────────────────────────
 
-exports.createActivity = catchAsync(async (req, res, next) => {
+export const createActivity = catchAsync(async (req, res, next) => {
   // Automatically set who added this activity
   req.body.addedBy = req.user.id;
 
@@ -25,7 +25,7 @@ exports.createActivity = catchAsync(async (req, res, next) => {
 
 // ─── GET ALL ACTIVITIES ─────────────────────────────────────────────────────────
 
-exports.getAllActivities = catchAsync(async (req, res, next) => {
+export const getAllActivities = catchAsync(async (req, res, next) => {
   const filter = {};
   if (req.params.tripId) filter.trip = req.params.tripId;
 
@@ -42,7 +42,7 @@ exports.getAllActivities = catchAsync(async (req, res, next) => {
 
 // ─── GET SINGLE ACTIVITY ────────────────────────────────────────────────────────
 
-exports.getActivity = catchAsync(async (req, res, next) => {
+export const getActivity = catchAsync(async (req, res, next) => {
   const activity = await TripActivity.findById(req.params.id);
 
   if (!activity) {
@@ -57,7 +57,7 @@ exports.getActivity = catchAsync(async (req, res, next) => {
 
 // ─── UPDATE ACTIVITY ────────────────────────────────────────────────────────────
 
-exports.updateActivity = catchAsync(async (req, res, next) => {
+export const updateActivity = catchAsync(async (req, res, next) => {
   const activity = await TripActivity.findByIdAndUpdate(
     req.params.id,
     req.body,
@@ -76,7 +76,7 @@ exports.updateActivity = catchAsync(async (req, res, next) => {
 
 // ─── DELETE ACTIVITY ────────────────────────────────────────────────────────────
 
-exports.deleteActivity = catchAsync(async (req, res, next) => {
+export const deleteActivity = catchAsync(async (req, res, next) => {
   const activity = await TripActivity.findByIdAndDelete(req.params.id);
 
   if (!activity) {

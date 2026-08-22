@@ -1,6 +1,6 @@
-const express = require('express');
-const communityPostController = require('../controllers/CommunityPost.controller.js');
-const { protect } = require('../middlewares/auth.middleware.js');
+import express from 'express';
+import * as communityPostController from '../controllers/CommunityPost.controller.js';
+import { protect } from '../middlewares/auth.middleware.js';
 
 const router = express.Router();
 
@@ -17,4 +17,4 @@ router.post('/', communityPostController.createPost);
 router.patch('/:id', communityPostController.updatePost);
 router.delete('/:id', communityPostController.deletePost);
 
-module.exports = router;
+export default router;
