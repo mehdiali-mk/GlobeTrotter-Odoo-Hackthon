@@ -44,7 +44,7 @@ const itineraryStopSchema = new mongoose.Schema(
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Auto-populate city and trip references on any find query
-itineraryStopSchema.pre(/^find/, function (next) {
+itineraryStopSchema.pre(/^find/, function () {
   this.populate({
     path: 'city',
     select: 'name image'
@@ -52,7 +52,6 @@ itineraryStopSchema.pre(/^find/, function (next) {
     path: 'trip',
     select: 'title'
   });
-  next();
 });
 
 const ItineraryStop = mongoose.model('ItineraryStop', itineraryStopSchema);

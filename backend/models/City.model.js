@@ -56,11 +56,10 @@ citySchema.index({ region: 1 });
 // ─── DOCUMENT MIDDLEWARE ────────────────────────────────────────────────────────
 
 // Generate slug from name before saving
-citySchema.pre('save', function (next) {
+citySchema.pre('save', function () {
   if (this.isModified('name')) {
     this.slug = slugify(this.name, { lower: true });
   }
-  next();
 });
 
 const City = mongoose.model('City', citySchema);

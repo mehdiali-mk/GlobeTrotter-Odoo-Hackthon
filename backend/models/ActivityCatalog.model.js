@@ -59,22 +59,20 @@ activityCatalogSchema.index({ rating: -1 });
 // ─── DOCUMENT MIDDLEWARE ────────────────────────────────────────────────────────
 
 // Generate slug from title before saving
-activityCatalogSchema.pre('save', function (next) {
+activityCatalogSchema.pre('save', function () {
   if (this.isModified('title')) {
     this.slug = slugify(this.title, { lower: true });
   }
-  next();
 });
 
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Auto-populate city reference on any find query
-activityCatalogSchema.pre(/^find/, function (next) {
+activityCatalogSchema.pre(/^find/, function () {
   this.populate({
     path: 'city',
     select: 'name image region'
   });
-  next();
 });
 
 const ActivityCatalog = mongoose.model(

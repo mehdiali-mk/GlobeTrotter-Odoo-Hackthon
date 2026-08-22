@@ -95,17 +95,16 @@ tripSchema.virtual('durationDays').get(function () {
 // ─── DOCUMENT MIDDLEWARE ────────────────────────────────────────────────────────
 
 // Generate slug from title before saving
-tripSchema.pre('save', function (next) {
+tripSchema.pre('save', function () {
   if (this.isModified('title')) {
     this.slug = slugify(this.title, { lower: true });
   }
-  next();
 });
 
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Auto-populate creator and members.user on any find query
-tripSchema.pre(/^find/, function (next) {
+tripSchema.pre(/^find/, function () {
   this.populate({
     path: 'creator',
     select: 'name photo'
@@ -113,7 +112,6 @@ tripSchema.pre(/^find/, function (next) {
     path: 'members.user',
     select: 'name photo'
   });
-  next();
 });
 
 const Trip = mongoose.model('Trip', tripSchema);

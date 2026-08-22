@@ -38,7 +38,7 @@ const communityPostSchema = new mongoose.Schema(
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Auto-populate user and trip references on any find query
-communityPostSchema.pre(/^find/, function (next) {
+communityPostSchema.pre(/^find/, function () {
   this.populate({
     path: 'user',
     select: 'name photo'
@@ -46,7 +46,6 @@ communityPostSchema.pre(/^find/, function (next) {
     path: 'trip',
     select: 'title coverPhoto slug'
   });
-  next();
 });
 
 const CommunityPost = mongoose.model('CommunityPost', communityPostSchema);

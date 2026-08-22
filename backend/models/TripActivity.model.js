@@ -62,14 +62,13 @@ const tripActivitySchema = new mongoose.Schema(
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Auto-populate catalogActivity (if it exists) and addedBy on any find query
-tripActivitySchema.pre(/^find/, function (next) {
+tripActivitySchema.pre(/^find/, function () {
   this.populate({
     path: 'catalogActivity'
   }).populate({
     path: 'addedBy',
     select: 'name'
   });
-  next();
 });
 
 const TripActivity = mongoose.model('TripActivity', tripActivitySchema);

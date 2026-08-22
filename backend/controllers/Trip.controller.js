@@ -230,9 +230,10 @@ export const cloneTrip = catchAsync(async (req, res, next) => {
   const stopIdMap = {};
 
   for (const stop of originalStops) {
+    const cityId = stop.populated('city') || stop.city?._id || stop.city;
     const clonedStop = await ItineraryStop.create({
       trip: clonedTrip._id,
-      city: stop.city._id || stop.city,
+      city: cityId,
       cityName: stop.cityName,
       arrivalDate: stop.arrivalDate,
       departureDate: stop.departureDate,
@@ -249,15 +250,21 @@ export const cloneTrip = catchAsync(async (req, res, next) => {
   });
 
   for (const activity of originalActivities) {
-    const oldStopId = activity.stop._id
-      ? activity.stop._id.toString()
-      : activity.stop.toString();
+    const oldStopId = (
+      activity.populated('stop') ||
+      activity.stop?._id ||
+      activity.stop
+    )?.toString();
+
+    const catalogActId =
+      activity.populated('catalogActivity') ||
+      activity.catalogActivity?._id ||
+      activity.catalogActivity;
 
     await TripActivity.create({
-      stop: stopIdMap[oldStopId] || activity.stop,
+      stop: stopIdMap[oldStopId] || oldStopId,
       trip: clonedTrip._id,
-      catalogActivity:
-        activity.catalogActivity?._id || activity.catalogActivity,
+      catalogActivity: catalogActId || undefined,
       title: activity.title,
       category: activity.category,
       cost: activity.cost,

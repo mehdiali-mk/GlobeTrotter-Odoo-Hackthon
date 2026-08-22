@@ -10,8 +10,14 @@ import expenseRouter from './Expense.routes.js';
 
 const router = express.Router();
 
-// All trip routes require authentication
+// ─── PUBLIC SHARING (NO AUTH REQUIRED FOR VIEW) ─────────────────────────
+router.get('/public/:slug', tripController.getPublicTrip);
+
+// All other trip routes require authentication
 router.use(protect);
+
+// Clone requires authentication
+router.post('/public/:slug/clone', tripController.cloneTrip);
 
 // ─── NESTED ROUTES ──────────────────────────────────────────────────────────────
 // Re-route into nested resource routers
@@ -19,11 +25,6 @@ router.use(protect);
 router.use('/:tripId/stops', itineraryStopRouter);
 router.use('/:tripId/activities', tripActivityRouter);
 router.use('/:tripId/expenses', expenseRouter);
-
-// ─── PUBLIC SHARING ─────────────────────────────────────────────────────────────
-// These only require auth, not trip membership
-router.get('/public/:slug', tripController.getPublicTrip);
-router.post('/public/:slug/clone', tripController.cloneTrip);
 
 // ─── FILTER BY STATUS ───────────────────────────────────────────────────────────
 router.get('/status/:status', tripController.getMyTripsByStatus);

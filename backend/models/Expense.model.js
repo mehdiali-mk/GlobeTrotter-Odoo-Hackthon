@@ -80,10 +80,9 @@ expenseSchema.post('save', function () {
 // ─── QUERY MIDDLEWARE ───────────────────────────────────────────────────────────
 
 // Store the document before findOneAndUpdate / findOneAndDelete for post-hook access
-expenseSchema.pre(/^findOneAnd/, async function (next) {
+expenseSchema.pre(/^findOneAnd/, async function () {
   // Execute the query to get the document being updated/deleted
   this.doc = await this.model.findOne(this.getQuery());
-  next();
 });
 
 // Recalculate trip expenses after an update or delete via findOneAnd*
@@ -95,7 +94,7 @@ expenseSchema.post(/^findOneAnd/, async function () {
 });
 
 // Auto-populate paidBy and splitAmong on any find query
-expenseSchema.pre(/^find/, function (next) {
+expenseSchema.pre(/^find/, function () {
   this.populate({
     path: 'paidBy',
     select: 'name photo'
@@ -103,7 +102,6 @@ expenseSchema.pre(/^find/, function (next) {
     path: 'splitAmong',
     select: 'name photo'
   });
-  next();
 });
 
 const Expense = mongoose.model('Expense', expenseSchema);
